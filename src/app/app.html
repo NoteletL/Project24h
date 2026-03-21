@@ -38,8 +38,11 @@
   </div>
 
 } @else {
-  <!-- Main Game Interface -->
-  <header class="header">
+  <!-- Lien d'évitement pour les utilisateurs au clavier -->
+  <a href="#main-content" class="skip-link sr-only">Aller au contenu principal</a>
+
+  <!-- En-tête du jeu -->
+  <header class="header" role="banner">
     <h1>🌊 3026</h1>
     <div class="status-bar">
       @if (game.playerDetails(); as p) {
@@ -51,15 +54,15 @@
         <span class="status-ship">⛵ {{ ship.level?.name ?? '?' }} — {{ ship.availableMove }}/{{ ship.level?.maxMovement ?? '?' }} mvt</span>
         <span class="status-pos">📍 ({{ ship.currentPosition?.x }}, {{ ship.currentPosition?.y }})</span>
       }
-      <button class="btn-logout" (click)="logout()" title="Déconnexion">⏏️</button>
+      <button class="btn-logout" (click)="logout()" title="Déconnexion" aria-label="Se déconnecter">⏏️</button>
     </div>
   </header>
 
-  <!-- Resources bar -->
-  <div class="resources-bar">
+  <!-- Barre de ressources -->
+  <div class="resources-bar" role="status" aria-label="Ressources actuelles">
     @for (res of game.resources(); track res.type) {
       <div class="res-item">
-        <span class="res-icon">
+        <span class="res-icon" aria-hidden="true">
           @switch (res.type) {
             @case ('BOISIUM')    { 🪵 }
             @case ('FERONIUM')   { ⛏️ }
@@ -71,38 +74,88 @@
     }
     @if (game.playerDetails(); as p) {
       <div class="res-item res-gold">
-        <span class="res-icon">💰</span>
+        <span class="res-icon" aria-hidden="true">💰</span>
         <span>OR: {{ p.money }}</span>
       </div>
       <div class="res-item res-islands">
-        <span class="res-icon">🏝️</span>
+        <span class="res-icon" aria-hidden="true">🏝️</span>
         <span>Îles: {{ p.discoveredIslands.length }}</span>
       </div>
     }
   </div>
 
-  <!-- Map -->
-  <section class="map-section">
-    <app-game-map />
-  </section>
+  <!-- Layout principal : sidebar + contenu -->
+  <div class="main-layout">
 
-  <!-- Log -->
-  <section class="info-panel">
-    <app-log-panel />
-  </section>
+    <!-- Barre de navigation latérale -->
+    <nav class="sidebar" aria-label="Navigation principale">
+      <ul class="sidebar-nav" role="list">
+        <li>
+          <button
+            [attr.aria-current]="activeView() === 'map' ? 'page' : null"
+            (click)="setView('map')"
+            [attr.aria-label]="activeView() === 'map' ? 'Vue carte (actif)' : 'Vue carte'">
+            <span aria-hidden="true">🗺️</span>
+            <span class="nav-label">Carte</span>
+          </button>
+        </li>
+        <li>
+          <button
+            [attr.aria-current]="activeView() === 'market' ? 'page' : null"
+            (click)="setView('market')"
+            [attr.aria-label]="activeView() === 'market' ? 'Marketplace (actif)' : 'Marketplace'">
+            <span aria-hidden="true">🏪</span>
+            <span class="nav-label">Marché</span>
+          </button>
+        </li>
+        <li>
+          <button
+            [attr.aria-current]="activeView() === 'broker' ? 'page' : null"
+            (click)="setView('broker')"
+            [attr.aria-label]="activeView() === 'broker' ? 'Broker AMQP (actif)' : 'Broker AMQP'">
+            <span aria-hidden="true">📡</span>
+            <span class="nav-label">Broker</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
 
-  <!-- Controls -->
-  <app-controls (action)="onAction($event)" />
+    <!-- Zone de contenu principale -->
+    <main id="main-content" class="main-content" tabindex="-1">
 
-  <!-- Marketplace (dialogue superposé) -->
+      @if (activeView() === 'map') {
+        <!-- Vue Carte -->
+        <section class="map-section" aria-label="Carte du monde">
+          <app-game-map />
+        </section>
+
+        <section class="info-panel" aria-label="Journal d'événements">
+          <app-log-panel />
+        </section>
+
+        <app-controls (action)="onAction($event)" />
+
+      } @else if (activeView() === 'market') {
+        <!-- Vue Dashboard Marketplace -->
+        <app-market-dashboard />
+
+      } @else if (activeView() === 'broker') {
+        <!-- Vue Broker AMQP -->
+        <app-broker-panel />
+      }
+
+    </main>
+  </div>
+
+  <!-- Marketplace modale (conservée pour compatibilité) -->
   <app-marketplace />
 
-  <!-- Modal -->
+  <!-- Modale générique -->
   @if (game.modalVisible()) {
-    <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-overlay" (click)="closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-title-id">
       <div class="modal-content" (click)="$event.stopPropagation()">
-        <button class="btn-modal-close" (click)="closeModal()">✕</button>
-        <h2 class="modal-title">{{ game.modalTitle() }}</h2>
+        <button class="btn-modal-close" (click)="closeModal()" aria-label="Fermer la fenêtre">✕</button>
+        <h2 id="modal-title-id" class="modal-title">{{ game.modalTitle() }}</h2>
         <div class="modal-body" [innerHTML]="game.modalBody()"></div>
       </div>
     </div>

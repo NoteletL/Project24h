@@ -1,0 +1,316 @@
+<div class="broker-panel" aria-labelledby="broker-panel-title">
+
+  <!-- En-tête -->
+  <div class="panel-header">
+    <h2 id="broker-panel-title">📡 Broker AMQP</h2>
+    <div class="connection-badge"
+         [class.badge--ready]="broker.connected()"
+         [class.badge--connecting]="broker.connecting()"
+         [class.badge--off]="!broker.connected() && !broker.connecting()"
+         aria-live="polite"
+         aria-atomic="true">
+      <span class="badge-dot" aria-hidden="true"></span>
+      <span>{{ broker.connected() ? 'Connecté' : broker.connecting() ? 'Connexion…' : 'Déconnecté' }}</span>
+    </div>
+  </div>
+
+  <!-- Statut / Erreur -->
+  @if (broker.error()) {
+    <p class="msg-error" role="alert" aria-live="assertive">⚠️ {{ broker.error() }}</p>
+  }
+  @if (buyError()) {
+    <p class="msg-error" role="alert" aria-live="assertive">⚠️ {{ buyError() }}</p>
+  }
+  @if (buySuccess()) {
+    <p class="msg-success" role="status" aria-live="polite">{{ buySuccess() }}</p>
+  }
+
+  <!-- ════════════════════════════════════════
+       SECTION 1 : Connexion
+       ════════════════════════════════════════ -->
+  <section class="panel-section" aria-labelledby="section-conn-title">
+    <h3 id="section-conn-title" class="section-title">Connexion au broker</h3>
+
+    <p class="section-desc">
+      Les identifiants sont récupérés automatiquement depuis votre session.
+      Le proxy WebSocket doit être lancé : <code>cd broker-proxy &amp;&amp; npm start</code>
+    </p>
+
+    <p class="status-line" aria-live="polite">{{ broker.status() }}</p>
+
+    <div class="conn-buttons">
+      @if (!broker.connected() && !broker.connecting()) {
+        <button
+          class="btn-connect"
+          (click)="connect()"
+          [disabled]="!game.playerDetails()"
+          [attr.aria-label]="!game.playerDetails() ? 'Se connecter (joueur non chargé)' : 'Se connecter au broker AMQP'">
+          🔌 Se connecter
+        </button>
+      }
+      @if (broker.connecting()) {
+        <button class="btn-connect" disabled aria-label="Connexion en cours…">
+          ⏳ Connexion…
+        </button>
+      }
+      @if (broker.connected()) {
+        <button
+          class="btn-disconnect"
+          (click)="disconnect()"
+          aria-label="Se déconnecter du broker AMQP">
+          ⏏️ Déconnecter
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       SECTION 2 : Bot broker
+       ════════════════════════════════════════ -->
+  <section class="panel-section" aria-labelledby="section-bot-title">
+    <div class="section-header-row">
+      <h3 id="section-bot-title" class="section-title">🤖 Bot broker</h3>
+      <span
+        class="bot-badge"
+        [class.bot-badge--on]="botEnabled()"
+        [attr.aria-label]="botEnabled() ? 'Bot activé' : 'Bot désactivé'">
+        {{ botEnabled() ? 'ON' : 'OFF' }}
+      </span>
+    </div>
+
+    <p class="section-desc">
+      Achète automatiquement les offres correspondant à vos critères dès leur réception.
+      <strong>Désactivé par défaut.</strong>
+    </p>
+
+    <!-- Règles du bot -->
+    <fieldset class="bot-rules" [disabled]="botEnabled()">
+      <legend>Critères d'achat</legend>
+
+      <div class="form-row">
+        <label for="bot-resource">Ressource</label>
+        <select id="bot-resource" name="bot-resource" [(ngModel)]="rule.resource">
+          @for (r of resources; track r) {
+            <option [value]="r">
+              {{ r === 'ANY' ? '🌐 Toutes les ressources' : resourceIcon(r) + ' ' + r }}
+            </option>
+          }
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="bot-price">Prix maximum (OR/unité)</label>
+        <div class="input-with-unit">
+          <input
+            type="number"
+            id="bot-price"
+            name="bot-price"
+            [(ngModel)]="rule.maxPrice"
+            min="1"
+            max="9999"
+            aria-describedby="bot-price-hint" />
+          <span class="unit">OR/u</span>
+        </div>
+        <small id="bot-price-hint">Le bot n'achètera que si prix ≤ cette valeur.</small>
+      </div>
+
+      <div class="form-row">
+        <label for="bot-qty">Quantité max par achat</label>
+        <input
+          type="number"
+          id="bot-qty"
+          name="bot-qty"
+          [(ngModel)]="rule.maxQtyPerBuy"
+          min="1"
+          max="9999"
+          aria-describedby="bot-qty-hint" />
+        <small id="bot-qty-hint">Limite par transaction (budget et stock disponible pris en compte).</small>
+      </div>
+
+      <div class="form-row">
+        <label for="bot-total">Nombre total d'unités max <abbr title="0 = illimité">(?)</abbr></label>
+        <div class="input-with-unit">
+          <input
+            type="number"
+            id="bot-total"
+            name="bot-total"
+            [(ngModel)]="rule.maxTotalBuy"
+            min="0"
+            aria-describedby="bot-total-hint" />
+          <span class="unit">unités</span>
+        </div>
+        <small id="bot-total-hint">
+          Le bot s'arrête automatiquement une fois ce total atteint. Mettre <strong>0</strong> pour illimité.
+        </small>
+      </div>
+    </fieldset>
+
+    <!-- Bouton toggle bot -->
+    <button
+      class="btn-bot-toggle"
+      [class.btn-bot-toggle--on]="botEnabled()"
+      [class.btn-bot-toggle--done]="limitReached"
+      (click)="toggleBot()"
+      [attr.aria-pressed]="botEnabled()"
+      [attr.aria-label]="botEnabled() ? 'Désactiver le bot broker' : (limitReached ? 'Relancer le bot (limite atteinte)' : 'Activer le bot broker')"
+      [disabled]="!broker.connected() && !botEnabled()">
+      @if (limitReached) { 🏁 Limite atteinte — Relancer }
+      @else if (botEnabled()) { ⏹ Désactiver le bot }
+      @else { ▶ Activer le bot }
+    </button>
+
+    <!-- Statut du bot -->
+    @if (botLastAction()) {
+      <div class="bot-status" aria-live="polite" aria-atomic="true">
+        <span aria-hidden="true">🤖</span> {{ botLastAction() }}
+      </div>
+    }
+
+    <!-- Compteur + barre de progression (affiché uniquement si limite définie) -->
+    @if (rule.maxTotalBuy > 0) {
+      <div class="bot-progress-wrap" role="status" aria-label="Progression du bot">
+        <div class="bot-progress-header">
+          <span class="bot-progress-label">Progression</span>
+          <span class="bot-progress-count">
+            <strong>{{ botBoughtTotal() }}</strong> / {{ rule.maxTotalBuy }} unités
+            @if (progressPercent !== null) {
+              <span class="bot-progress-pct">({{ progressPercent }}%)</span>
+            }
+          </span>
+        </div>
+        <div
+          class="bot-progress-bar"
+          role="progressbar"
+          [attr.aria-valuenow]="botBoughtTotal()"
+          [attr.aria-valuemin]="0"
+          [attr.aria-valuemax]="rule.maxTotalBuy"
+          [attr.aria-label]="botBoughtTotal() + ' unités achetées sur ' + rule.maxTotalBuy">
+          <div
+            class="bot-progress-fill"
+            [class.bot-progress-fill--done]="limitReached"
+            [style.width.%]="progressPercent ?? 0">
+          </div>
+        </div>
+        @if (!limitReached && botEnabled()) {
+          <p class="bot-remaining">
+            Reste : <strong>{{ remainingBudgetUnits }}</strong> unité(s) avant l'arrêt automatique
+          </p>
+        }
+      </div>
+    } @else if (botBoughtTotal() > 0) {
+      <p class="bot-stats" role="status">
+        Total acheté cette session : <strong>{{ botBoughtTotal() }} unité(s)</strong>
+      </p>
+    }
+  </section>
+
+  <!-- ════════════════════════════════════════
+       SECTION 3 : Journal des messages
+       ════════════════════════════════════════ -->
+  <section class="panel-section panel-section--logs" aria-labelledby="section-logs-title">
+    <div class="section-header-row">
+      <h3 id="section-logs-title" class="section-title">
+        📋 Messages reçus
+        @if (broker.logs().length) {
+          <span class="badge" aria-label="{{ broker.logs().length }} messages">{{ broker.logs().length }}</span>
+        }
+      </h3>
+      <button
+        class="btn-clear"
+        (click)="broker.clearLogs()"
+        aria-label="Vider le journal des messages broker"
+        [disabled]="broker.logs().length === 0">
+        🗑️ Vider
+      </button>
+    </div>
+
+    @if (broker.logs().length === 0) {
+      <p class="empty-logs">
+        Aucun message reçu.
+        @if (!broker.connected()) {
+          <small>Connectez-vous au broker pour recevoir des messages.</small>
+        }
+      </p>
+    } @else {
+      <ol class="log-list" aria-label="Journal des messages du broker AMQP" reversed>
+        @for (entry of broker.logs(); track entry.id) {
+          <li
+            class="log-entry"
+            [class.log-entry--status]="entry.type === 'status'"
+            [class.log-entry--error]="entry.type === 'error'"
+            [class.log-entry--offer]="!!entry.offer">
+
+            <div class="log-entry-main">
+              <!-- Timestamp + type -->
+              <time class="log-time" [attr.datetime]="entry.timestamp">
+                {{ fmtTime(entry.timestamp) }}
+              </time>
+              <span
+                class="log-type-badge"
+                [class.type--msg]="entry.type === 'message'"
+                [class.type--status]="entry.type === 'status'"
+                [class.type--error]="entry.type === 'error'"
+                aria-hidden="true">
+                {{ entry.type === 'message' ? 'MSG' : entry.type === 'status' ? 'SYS' : 'ERR' }}
+              </span>
+
+              <!-- Résumé -->
+              <span class="log-label">{{ entry.label }}</span>
+            </div>
+
+            <!-- Si c'est une offre : bouton d'achat rapide -->
+            @if (entry.offer) {
+              <div class="log-entry-actions">
+                @if (buyingLogId() === entry.id) {
+                  <label [for]="'manual-qty-' + entry.id" class="sr-only">
+                    Quantité à acheter (max {{ entry.offer.quantityIn }})
+                  </label>
+                  <input
+                    type="number"
+                    [id]="'manual-qty-' + entry.id"
+                    class="qty-input"
+                    [ngModel]="manualQty()"
+                    (ngModelChange)="manualQty.set($event)"
+                    [name]="'manual-qty-' + entry.id"
+                    min="1"
+                    [max]="entry.offer.quantityIn"
+                    [attr.aria-label]="'Quantité à acheter, max ' + entry.offer.quantityIn" />
+                  <button
+                    class="btn-confirm"
+                    (click)="confirmManualBuy(entry)"
+                    [disabled]="buyLoading()"
+                    [attr.aria-label]="'Confirmer l\'achat de ' + manualQty() + ' × ' + entry.offer.resourceType">✓</button>
+                  <button
+                    class="btn-cancel"
+                    (click)="cancelManualBuy()"
+                    aria-label="Annuler l'achat">✕</button>
+                } @else {
+                  <button
+                    class="btn-buy-quick"
+                    (click)="startManualBuy(entry)"
+                    [attr.aria-label]="'Acheter rapidement ' + entry.offer.resourceType + ' de ce message'">
+                    Acheter
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- Détail JSON repliable (pour les messages non-offre) -->
+            @if (entry.detail && !entry.offer && entry.type === 'message') {
+              <details class="log-detail">
+                <summary>Voir les données brutes</summary>
+                <pre class="log-raw">{{ entry.detail }}</pre>
+              </details>
+            }
+
+          </li>
+        }
+      </ol>
+    }
+  </section>
+
+  <!-- Intercepteur invisible pour le bot réactif via effect (géré en TS) -->
+</div>
+
+
+

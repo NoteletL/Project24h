@@ -1,9 +1,11 @@
-import {Component, inject, OnInit, viewChild, ViewChild} from '@angular/core';
+import {Component, inject, OnInit, signal, viewChild, ViewChild} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameMapComponent } from './components/game-map/game-map';
 import { ControlsComponent } from './components/controls/controls';
 import { LogPanelComponent } from './components/log-panel/log-panel';
 import { MarketplaceComponent } from './components/marketplace/marketplace';
+import { MarketDashboardComponent } from './components/market-dashboard/market-dashboard';
+import { BrokerPanelComponent } from './components/broker-panel/broker-panel';
 import { ApiService, API_CONFIG, Direction, Ship } from './services/api.service';
 import { GameStateService } from './services/game-state.service';
 import { MapService } from './services/map.service';
@@ -13,7 +15,7 @@ import { PriceHistoryService } from './services/price-history.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, GameMapComponent, ControlsComponent, LogPanelComponent, MarketplaceComponent],
+  imports: [FormsModule, GameMapComponent, ControlsComponent, LogPanelComponent, MarketplaceComponent, MarketDashboardComponent, BrokerPanelComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -26,6 +28,13 @@ export class App implements OnInit {
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
+
+  /** Vue active : carte générale, dashboard marketplace ou broker */
+  readonly activeView = signal<'map' | 'market' | 'broker'>('map');
+
+  setView(view: 'map' | 'market' | 'broker'): void {
+    this.activeView.set(view);
+  }
 
   @ViewChild(GameMapComponent) gameMap?: GameMapComponent;
 
@@ -108,7 +117,7 @@ export class App implements OnInit {
         case 'upgrade-ship':  await this.handleUpgradeShip(); break;
         case 'refresh':       await this.refreshAll(); break;
         case 'show-islands':  await this.showIslands(); break;
-        case 'show-market':   this.marketplaceModal()?.open(); break;
+        case 'show-market':   this.setView('market'); break;
         case 'show-taxes':    await this.showTaxes(); break;
       }
     }

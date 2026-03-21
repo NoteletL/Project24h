@@ -1,0 +1,444 @@
+<div class="market-dashboard" aria-labelledby="market-dashboard-title">
+
+  <!-- En-tête -->
+  <div class="dashboard-header">
+    <h2 id="market-dashboard-title">🏪 Marketplace</h2>
+    <div class="dashboard-actions">
+      @if (priceHistory.isPolling()) {
+        <span class="poll-badge" aria-live="polite" aria-atomic="true">🔴 Polling actif</span>
+      }
+      <button
+        class="btn-refresh"
+        (click)="loadOffers()"
+        [disabled]="loading()"
+        aria-label="Rafraîchir les offres de la marketplace">
+        🔄 Rafraîchir
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages de retour globaux -->
+  @if (error())   { <p class="msg-error"  role="alert"  aria-live="assertive">⚠️ {{ error() }}</p> }
+  @if (success()) { <p class="msg-success" role="status" aria-live="polite">{{ success() }}</p> }
+
+  @if (!marketDiscovered) {
+    <!-- Marketplace non débloquée -->
+    <div class="market-locked" role="status">
+      <p>🔒 La Marketplace n'est pas encore découverte.</p>
+      <p>Explorez la carte et revenez valider votre expédition sur votre île de départ pour la débloquer.</p>
+    </div>
+
+  } @else {
+
+    <div class="accordion-list">
+
+      <!-- ══════════════════════════════════════════
+           ACCORDÉON : ACHETER
+           ══════════════════════════════════════════ -->
+      <div class="accordion-item">
+        <h3 class="accordion-heading">
+          <button
+            id="accordion-trigger-buy"
+            class="accordion-trigger"
+            [attr.aria-expanded]="isSectionOpen('buy')"
+            aria-controls="accordion-section-buy"
+            (click)="toggleSection('buy')">
+            <span aria-hidden="true">📥</span>
+            Acheter des ressources
+            <span class="chevron" [class.open]="isSectionOpen('buy')" aria-hidden="true">▾</span>
+          </button>
+        </h3>
+        <div
+          id="accordion-section-buy"
+          role="region"
+          aria-labelledby="accordion-trigger-buy"
+          class="accordion-content"
+          [hidden]="!isSectionOpen('buy')">
+
+          @if (loading()) {
+            <p class="loading">Chargement des offres…</p>
+          } @else if (otherOffers.length === 0) {
+            <p class="empty">Aucune offre disponible pour le moment.</p>
+          } @else {
+            <div class="table-wrapper">
+              <table>
+                <caption class="sr-only">Offres disponibles à l'achat</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Ressource</th>
+                    <th scope="col">Vendeur</th>
+                    <th scope="col">Qté dispo</th>
+                    <th scope="col">Prix / unité</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (offer of otherOffers; track offer.id) {
+                    <tr [class.row-cheap]="offer.pricePerResource <= 5">
+                      <td>{{ resourceIcon(offer.resourceType) }} {{ offer.resourceType }}</td>
+                      <td>{{ offer.owner?.name ?? '—' }}</td>
+                      <td>{{ offer.quantityIn }}</td>
+                      <td>💰 {{ offer.pricePerResource }}</td>
+                      <td class="td-action">
+                        @if (buyingOfferId() === offer.id) {
+                          <label [for]="'qty-' + offer.id" class="sr-only">
+                            Quantité à acheter (max {{ offer.quantityIn }})
+                          </label>
+                          <input
+                            type="number"
+                            [id]="'qty-' + offer.id"
+                            class="qty-input"
+                            [(ngModel)]="buyQty"
+                            [name]="'qty-' + offer.id"
+                            min="1"
+                            [max]="offer.quantityIn"
+                            [attr.aria-label]="'Quantité à acheter pour ' + offer.resourceType + ', maximum ' + offer.quantityIn" />
+                          <button
+                            class="btn-confirm"
+                            (click)="confirmBuy()"
+                            [disabled]="loading()"
+                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unités de ' + offer.resourceType">✓</button>
+                          <button
+                            class="btn-cancel"
+                            (click)="cancelBuy()"
+                            aria-label="Annuler l'achat">✕</button>
+                        } @else {
+                          <button
+                            class="btn-buy"
+                            (click)="startBuy(offer)"
+                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' de ' + (offer.owner?.name ?? 'inconnu')">
+                            Acheter
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           ACCORDÉON : VENDRE
+           ══════════════════════════════════════════ -->
+      <div class="accordion-item">
+        <h3 class="accordion-heading">
+          <button
+            id="accordion-trigger-sell"
+            class="accordion-trigger"
+            [attr.aria-expanded]="isSectionOpen('sell')"
+            aria-controls="accordion-section-sell"
+            (click)="toggleSection('sell')">
+            <span aria-hidden="true">📤</span>
+            Vendre des ressources
+            <span class="chevron" [class.open]="isSectionOpen('sell')" aria-hidden="true">▾</span>
+          </button>
+        </h3>
+        <div
+          id="accordion-section-sell"
+          role="region"
+          aria-labelledby="accordion-trigger-sell"
+          class="accordion-content"
+          [hidden]="!isSectionOpen('sell')">
+
+          @if (myOffer) {
+            <section class="my-offer" aria-labelledby="my-offer-title">
+              <h4 id="my-offer-title">Mon offre en cours</h4>
+              <p>
+                {{ resourceIcon(myOffer.resourceType) }}
+                <strong>{{ myOffer.resourceType }}</strong>
+                — {{ myOffer.quantityIn }} unité(s) à 💰 {{ myOffer.pricePerResource }} / unité
+              </p>
+              <button
+                class="btn-delete"
+                (click)="deleteMyOffer()"
+                [disabled]="loading()"
+                aria-label="Supprimer mon offre en cours">
+                🗑️ Supprimer mon offre
+              </button>
+            </section>
+          }
+
+          <section aria-labelledby="sell-form-title">
+            <h4 id="sell-form-title">{{ myOffer ? 'Modifier mon offre' : 'Publier une offre' }}</h4>
+            <p class="fields-required">
+              Les champs marqués d'un <abbr title="obligatoire">*</abbr> sont obligatoires.
+            </p>
+
+            <form (submit)="$event.preventDefault(); publishOffer()" class="sell-form">
+
+              <div class="form-row">
+                <label for="sell-resource">Ressource *</label>
+                <select
+                  id="sell-resource"
+                  name="sell-resource"
+                  [(ngModel)]="sellResource"
+                  required
+                  aria-required="true">
+                  @for (r of resources; track r) {
+                    <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-row">
+                <label for="sell-qty">Quantité à vendre *</label>
+                <input
+                  type="number"
+                  id="sell-qty"
+                  name="sell-qty"
+                  [(ngModel)]="sellQty"
+                  min="1"
+                  required
+                  aria-required="true"
+                  aria-describedby="sell-qty-hint" />
+                <small id="sell-qty-hint">Le stock sera immédiatement débité.</small>
+              </div>
+
+              <div class="form-row">
+                <label for="sell-price">Prix par unité (OR) *</label>
+                <input
+                  type="number"
+                  id="sell-price"
+                  name="sell-price"
+                  [(ngModel)]="sellPrice"
+                  min="1"
+                  required
+                  aria-required="true" />
+              </div>
+
+              <button
+                type="submit"
+                class="btn-publish"
+                [disabled]="loading() || !sellQty || !sellPrice">
+                {{ myOffer ? '✏️ Mettre à jour' : '📤 Publier' }}
+              </button>
+            </form>
+          </section>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           ACCORDÉON : PRIX (graphique)
+           ══════════════════════════════════════════ -->
+      <div class="accordion-item">
+        <h3 class="accordion-heading">
+          <button
+            id="accordion-trigger-chart"
+            class="accordion-trigger"
+            [attr.aria-expanded]="isSectionOpen('chart')"
+            aria-controls="accordion-section-chart"
+            (click)="toggleSection('chart')">
+            <span aria-hidden="true">📊</span>
+            Évolution des prix
+            <span class="chevron" [class.open]="isSectionOpen('chart')" aria-hidden="true">▾</span>
+          </button>
+        </h3>
+        <div
+          id="accordion-section-chart"
+          role="region"
+          aria-labelledby="accordion-trigger-chart"
+          class="accordion-content"
+          [hidden]="!isSectionOpen('chart')">
+
+          @if (chartData; as cd) {
+            <figure class="chart-figure">
+              <figcaption class="sr-only">
+                Évolution du prix moyen BOISIUM et FERONIUM. Seuil bot : 5 OR/u.
+              </figcaption>
+              <svg
+                [attr.viewBox]="'0 0 ' + cd.CW + ' ' + cd.CH"
+                class="price-chart"
+                role="img"
+                aria-label="Courbe des prix BOISIUM et FERONIUM">
+
+                <!-- Lignes de grille horizontales + labels Y -->
+                @for (tick of cd.yTicks; track tick.v) {
+                  <line
+                    [attr.x1]="cd.PAD.l" [attr.y1]="tick.y"
+                    [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="tick.y"
+                    stroke="rgba(255,255,255,0.07)" stroke-width="1" />
+                  <text
+                    [attr.x]="tick.x" [attr.y]="tick.y"
+                    text-anchor="end" dominant-baseline="middle"
+                    fill="#666" font-size="9">{{ tick.v }}</text>
+                }
+
+                <!-- Seuil bot à 5 OR (ligne rouge pointillée) -->
+                <line
+                  [attr.x1]="cd.PAD.l" [attr.y1]="cd.thresholdY"
+                  [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="cd.thresholdY"
+                  stroke="#e94560" stroke-dasharray="4,3" stroke-width="1.5" opacity="0.8" />
+                <text
+                  [attr.x]="cd.CW - cd.PAD.r + 2" [attr.y]="cd.thresholdY"
+                  fill="#e94560" font-size="8" dominant-baseline="middle">5</text>
+
+                <!-- Courbes de prix -->
+                @for (line of cd.lines; track line.key) {
+                  @if (line.hasData) {
+                    <polyline
+                      [attr.points]="line.points"
+                      [attr.stroke]="line.color"
+                      fill="none" stroke-width="2"
+                      stroke-linejoin="round" stroke-linecap="round" />
+                  }
+                }
+
+                <!-- Labels axe X -->
+                @for (lbl of cd.xLabels; track lbl.label) {
+                  <text
+                    [attr.x]="lbl.x" [attr.y]="cd.CH - 4"
+                    text-anchor="middle" fill="#555" font-size="8">{{ lbl.label }}</text>
+                }
+              </svg>
+            </figure>
+
+            <!-- Légende -->
+            <div class="chart-legend" role="list" aria-label="Légende du graphique des prix">
+              @for (line of cd.lines; track line.key) {
+                <span class="legend-item" role="listitem">
+                  <span class="legend-dot" [style.background]="line.color" aria-hidden="true"></span>
+                  {{ line.label }}
+                </span>
+              }
+              <span class="legend-item" role="listitem">
+                <span class="legend-dash" aria-hidden="true"></span>
+                Seuil bot (5 OR)
+              </span>
+            </div>
+          } @else {
+            <p class="empty">
+              En attente de données…
+              <small>Les données apparaissent après le premier poll (10 s).</small>
+            </p>
+          }
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           ACCORDÉON : HISTORIQUE
+           ══════════════════════════════════════════ -->
+      <div class="accordion-item">
+        <h3 class="accordion-heading">
+          <button
+            id="accordion-trigger-history"
+            class="accordion-trigger"
+            [attr.aria-expanded]="isSectionOpen('history')"
+            aria-controls="accordion-section-history"
+            (click)="toggleSection('history')">
+            <span aria-hidden="true">📋</span>
+            Historique des transactions
+            @if (transactions.length) {
+              <span class="badge" aria-label="{{ transactions.length }} transactions">
+                {{ transactions.length }}
+              </span>
+            }
+            <span class="chevron" [class.open]="isSectionOpen('history')" aria-hidden="true">▾</span>
+          </button>
+        </h3>
+        <div
+          id="accordion-section-history"
+          role="region"
+          aria-labelledby="accordion-trigger-history"
+          class="accordion-content"
+          [hidden]="!isSectionOpen('history')">
+
+          @if (transactions.length === 0) {
+            <p class="empty">Aucune transaction enregistrée pour cette session.</p>
+          } @else {
+            <div class="table-wrapper">
+              <table>
+                <caption class="sr-only">Historique des transactions marketplace</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Heure</th>
+                    <th scope="col">Ressource</th>
+                    <th scope="col">Qté</th>
+                    <th scope="col">Prix/u</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (tx of transactions; track tx.timestamp) {
+                    <tr>
+                      <td>{{ fmtTime(tx.timestamp) }}</td>
+                      <td>{{ resourceIcon(tx.resourceType) }} {{ tx.resourceType }}</td>
+                      <td>{{ tx.quantity }}</td>
+                      <td>💰 {{ tx.pricePerUnit }}</td>
+                      <td>💰 {{ tx.totalCost }}</td>
+                      <td [attr.aria-label]="tx.source === 'bot' ? 'Bot automatique' : 'Achat manuel'">
+                        {{ tx.source === 'bot' ? '🤖' : '👤' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           ACCORDÉON : BOT D'ACHAT
+           ══════════════════════════════════════════ -->
+      <div class="accordion-item">
+        <h3 class="accordion-heading">
+          <button
+            id="accordion-trigger-bot"
+            class="accordion-trigger"
+            [attr.aria-expanded]="isSectionOpen('bot')"
+            aria-controls="accordion-section-bot"
+            (click)="toggleSection('bot')">
+            <span aria-hidden="true">🤖</span>
+            Bot d'achat automatique
+            @if (bot.isRunning()) {
+              <span class="badge badge--running">ON</span>
+            }
+            <span class="chevron" [class.open]="isSectionOpen('bot')" aria-hidden="true">▾</span>
+          </button>
+        </h3>
+        <div
+          id="accordion-section-bot"
+          role="region"
+          aria-labelledby="accordion-trigger-bot"
+          class="accordion-content"
+          [hidden]="!isSectionOpen('bot')">
+
+          <div class="bot-panel">
+            <p class="bot-description">
+              Le bot achète automatiquement BOISIUM et FERONIUM à ≤ 5 OR/u toutes les 15 secondes.
+            </p>
+            <div class="bot-controls">
+              <button
+                class="btn-bot-toggle"
+                [class.btn-bot--running]="bot.isRunning()"
+                (click)="bot.toggle()"
+                [attr.aria-pressed]="bot.isRunning()"
+                aria-label="Activer ou désactiver le bot d'achat automatique BOISIUM/FERONIUM">
+                {{ bot.isRunning() ? '⏹ Arrêter le bot' : '▶ Démarrer le bot' }}
+              </button>
+
+              <dl class="bot-stats">
+                <div class="bot-stat-row">
+                  <dt>Achats effectués :</dt>
+                  <dd>{{ bot.purchaseCount() }} unité(s)</dd>
+                </div>
+              </dl>
+            </div>
+
+            @if (bot.lastStatus()) {
+              <div class="bot-status" aria-live="polite" aria-atomic="true">
+                {{ bot.lastStatus() }}
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.accordion-list -->
+  }<!-- /marketDiscovered -->
+</div>
+

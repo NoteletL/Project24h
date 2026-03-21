@@ -9,8 +9,8 @@ const VIEWPORT_H = 528;
 // Zoom = nombre de colonnes visibles (impair pour centrage)
 const ZOOM_DEFAULT = 15;
 const ZOOM_MIN     = 7;
-const ZOOM_MAX     = 31;
-const ZOOM_STEP    = 2;
+const ZOOM_MAX     = 300;
+const ZOOM_STEP    = 10;
 
 @Component({
   selector: 'app-game-map',
