@@ -46,8 +46,9 @@ export class GameMapComponent {
   }
 
   isShipHere(cell: Cell | null): boolean {
-    if (!cell || !this.ship) return false;
-    return cell.id === this.ship.currentPosition.id;
+    const ship = this.ship; // variable locale nécessaire pour le narrowing TypeScript sur un getter
+    if (!cell || !ship?.currentPosition) return false;
+    return cell.id === ship.currentPosition.id;
   }
 
   getCellClass(cell: Cell | null): string {

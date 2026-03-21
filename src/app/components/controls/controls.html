@@ -35,5 +35,25 @@
     <button class="btn-action btn-taxes" (click)="onAction('show-taxes')" title="Taxes (T)">
       💸 Taxes
     </button>
+
+    <!-- Bot d'achat automatique -->
+    <button
+      class="btn-action btn-bot"
+      [class.btn-bot--running]="bot.isRunning()"
+      (click)="bot.toggle()"
+      [attr.aria-pressed]="bot.isRunning()"
+      [title]="bot.isRunning() ? 'Arrêter le bot (P)' : 'Démarrer le bot d\'achat auto (P)'"
+      aria-label="Bot d'achat automatique BOISIUM/FERONIUM">
+      {{ bot.isRunning() ? '🤖 Bot ON' : '🤖 Bot OFF' }}
+    </button>
+
+    <app-help-panel />
   </div>
+
+  <!-- Statut bot (annoncé aux lecteurs d'écran) -->
+  @if (bot.lastStatus()) {
+    <div class="bot-status" aria-live="polite" aria-atomic="true">
+      {{ bot.lastStatus() }}
+    </div>
+  }
 </div>

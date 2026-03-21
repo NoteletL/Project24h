@@ -1,0 +1,321 @@
+/* ===================================================
+   Overlay
+   =================================================== */
+.market-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+}
+
+/* ===================================================
+   Panneau principal
+   =================================================== */
+.market-panel {
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-light);
+  border-radius: 12px;
+  width: min(96vw, 800px);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 50px rgba(83, 52, 131, 0.4);
+}
+
+/* En-tête */
+.market-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-glow);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.market-header h2 {
+  color: var(--accent-light);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Bouton fermer */
+.btn-close {
+  background: none;
+  border: 1px solid rgba(233, 69, 96, 0.35);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 10px;
+  line-height: 1.8;
+  transition: all 0.15s;
+}
+.btn-close:hover  { color: var(--red); border-color: var(--red); }
+.btn-close:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ===================================================
+   Marketplace non débloquée
+   =================================================== */
+.market-locked {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.market-locked p:first-child { font-size: 1.1rem; color: var(--text-primary); margin-bottom: 8px; }
+
+/* ===================================================
+   Onglets
+   =================================================== */
+.market-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px 0;
+  border-bottom: 1px solid var(--border-glow);
+}
+
+.market-tabs [role="tab"] {
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.market-tabs [role="tab"]:hover { color: var(--text-primary); }
+.market-tabs [role="tab"].active {
+  color: var(--accent-light);
+  border-bottom-color: var(--accent-light);
+  font-weight: 600;
+}
+.market-tabs [role="tab"]:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; border-radius: 4px; }
+
+.btn-refresh {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+.btn-refresh:hover  { color: var(--green); border-color: var(--green); }
+.btn-refresh:disabled { opacity: 0.4; cursor: default; }
+.btn-refresh:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ===================================================
+   Messages de retour
+   =================================================== */
+.msg-error   { color: var(--red);   padding: 8px 16px; font-size: 0.85rem; }
+.msg-success { color: var(--green); padding: 8px 16px; font-size: 0.85rem; }
+
+/* ===================================================
+   Contenu des onglets
+   =================================================== */
+.tab-panel {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading { color: var(--text-muted); font-style: italic; font-size: 0.85rem; }
+.empty   { color: var(--text-secondary); font-size: 0.85rem; }
+
+/* ===================================================
+   Tableau des offres (Acheter)
+   =================================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+th {
+  text-align: left;
+  color: var(--accent-light);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-glow);
+  background: rgba(83, 52, 131, 0.08);
+}
+td {
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+tr:last-child td  { border-bottom: none; }
+tr:hover td       { background: rgba(255, 255, 255, 0.03); }
+
+.td-action { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Boutons d'action tableau */
+.btn-buy, .btn-confirm, .btn-cancel {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s;
+  border: 1px solid;
+}
+.btn-buy     { background: rgba(83, 52, 131, 0.3); border-color: var(--accent-light); color: var(--text-primary); }
+.btn-buy:hover { background: rgba(83, 52, 131, 0.5); }
+.btn-confirm { background: rgba(78, 204, 163, 0.2); border-color: var(--green); color: var(--green); }
+.btn-confirm:hover { background: rgba(78, 204, 163, 0.35); }
+.btn-cancel  { background: none; border-color: rgba(233, 69, 96, 0.4); color: var(--text-muted); }
+.btn-cancel:hover  { border-color: var(--red); color: var(--red); }
+.btn-buy:focus-visible, .btn-confirm:focus-visible, .btn-cancel:focus-visible {
+  outline: 3px solid var(--green); outline-offset: 2px;
+}
+
+.qty-input {
+  width: 70px;
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+.qty-input:focus { outline: none; border-color: var(--green); }
+
+/* ===================================================
+   Mon offre en cours
+   =================================================== */
+.my-offer {
+  background: rgba(240, 192, 64, 0.06);
+  border: 1px solid rgba(240, 192, 64, 0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.my-offer h3 { color: var(--gold); font-size: 0.9rem; margin: 0; }
+.my-offer p  { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+
+.btn-delete {
+  align-self: flex-start;
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid rgba(233, 69, 96, 0.4);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-delete:hover    { border-color: var(--red); color: var(--red); }
+.btn-delete:disabled { opacity: 0.4; cursor: default; }
+.btn-delete:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ===================================================
+   Formulaire de vente
+   =================================================== */
+section h3 {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.fields-required {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.sell-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-row label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.form-row small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.form-row input, .form-row select {
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  max-width: 280px;
+}
+.form-row input:focus, .form-row select:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.form-row select option { background: var(--bg-tertiary); }
+
+.btn-publish {
+  align-self: flex-start;
+  padding: 9px 20px;
+  background: rgba(83, 52, 131, 0.3);
+  border: 2px solid var(--accent-light);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.btn-publish:hover    { background: rgba(83, 52, 131, 0.5); transform: translateY(-1px); }
+.btn-publish:disabled { opacity: 0.4; cursor: default; transform: none; }
+.btn-publish:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ===================================================
+   Utilitaire accessibilité
+   =================================================== */
+.sr-only:not(:focus):not(:active) {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* ===================================================
+   Responsive
+   =================================================== */
+@media (max-width: 600px) {
+  .market-panel { width: 98vw; max-height: 92vh; }
+  .market-header { padding: 12px 14px 10px; }
+  .tab-panel { padding: 12px 14px 16px; }
+  table { font-size: 0.75rem; }
+  .td-action { flex-direction: column; align-items: flex-start; }
+}
+

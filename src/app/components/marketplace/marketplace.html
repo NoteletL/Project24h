@@ -1,0 +1,212 @@
+@if (isOpen()) {
+  <div
+    class="market-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="market-title"
+    (click)="onBackdropClick($event)">
+
+    <div class="market-panel" (keydown)="onKeydown($event)" #panelEl>
+
+      <!-- En-tête -->
+      <div class="market-header">
+        <h2 id="market-title">🏪 Marketplace</h2>
+        <button class="btn-close" (click)="close()" aria-label="Fermer la Marketplace" #closeBtn>✕</button>
+      </div>
+
+      @if (!marketDiscovered) {
+        <!-- Marketplace non débloquée -->
+        <div class="market-locked">
+          <p>🔒 La Marketplace n'est pas encore découverte.</p>
+          <p>Explorez la carte et revenez valider votre expédition sur votre île de départ pour la débloquer.</p>
+        </div>
+
+      } @else {
+
+        <!-- Onglets -->
+        <div class="market-tabs" role="tablist" aria-label="Onglets Marketplace">
+          <button
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'buy'"
+            [class.active]="activeTab() === 'buy'"
+            id="tab-btn-buy"
+            aria-controls="tab-panel-buy"
+            (click)="setTab('buy')">
+            📥 Acheter
+          </button>
+          <button
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'sell'"
+            [class.active]="activeTab() === 'sell'"
+            id="tab-btn-sell"
+            aria-controls="tab-panel-sell"
+            (click)="setTab('sell')">
+            📤 Vendre
+          </button>
+          <button
+            class="btn-refresh"
+            (click)="loadOffers()"
+            [disabled]="loading()"
+            aria-label="Rafraîchir les offres">
+            🔄
+          </button>
+        </div>
+
+        <!-- Messages de retour -->
+        @if (error()) {
+          <p class="msg-error" role="alert" aria-live="assertive">⚠️ {{ error() }}</p>
+        }
+        @if (success()) {
+          <p class="msg-success" role="status" aria-live="polite">{{ success() }}</p>
+        }
+
+        <!-- Panneau Acheter -->
+        @if (activeTab() === 'buy') {
+          <div id="tab-panel-buy" role="tabpanel" aria-labelledby="tab-btn-buy" class="tab-panel">
+            @if (loading()) {
+              <p class="loading">Chargement des offres…</p>
+            } @else if (otherOffers.length === 0) {
+              <p class="empty">Aucune offre disponible pour le moment.</p>
+            } @else {
+              <table>
+                <caption class="sr-only">Offres disponibles à l'achat</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Ressource</th>
+                    <th scope="col">Vendeur</th>
+                    <th scope="col">Qté dispo</th>
+                    <th scope="col">Prix / unité</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (offer of otherOffers; track offer.id) {
+                    <tr>
+                      <td>{{ resourceIcon(offer.resourceType) }} {{ offer.resourceType }}</td>
+                      <td>{{ offer.owner?.name ?? '—' }}</td>
+                      <td>{{ offer.quantityIn }}</td>
+                      <td>💰 {{ offer.pricePerResource }}</td>
+                      <td class="td-action">
+                        @if (buyingOfferId() === offer.id) {
+                          <label [for]="'qty-' + offer.id" class="sr-only">
+                            Quantité à acheter (max {{ offer.quantityIn }})
+                          </label>
+                          <input
+                            type="number"
+                            [id]="'qty-' + offer.id"
+                            class="qty-input"
+                            [(ngModel)]="buyQty"
+                            [name]="'qty-' + offer.id"
+                            min="1"
+                            [max]="offer.quantityIn"
+                            aria-label="Quantité à acheter"
+                          />
+                          <button
+                            class="btn-confirm"
+                            (click)="confirmBuy()"
+                            [disabled]="loading()"
+                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unités de ' + offer.resourceType">
+                            ✓
+                          </button>
+                          <button
+                            class="btn-cancel"
+                            (click)="cancelBuy()"
+                            aria-label="Annuler l'achat">
+                            ✕
+                          </button>
+                        } @else {
+                          <button
+                            class="btn-buy"
+                            (click)="startBuy(offer)"
+                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' de ' + (offer.owner?.name ?? 'inconnu')">
+                            Acheter
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        }
+
+        <!-- Panneau Vendre -->
+        @if (activeTab() === 'sell') {
+          <div id="tab-panel-sell" role="tabpanel" aria-labelledby="tab-btn-sell" class="tab-panel">
+
+            @if (myOffer) {
+              <section class="my-offer" aria-labelledby="my-offer-title">
+                <h3 id="my-offer-title">Mon offre en cours</h3>
+                <p>
+                  {{ resourceIcon(myOffer.resourceType) }} <strong>{{ myOffer.resourceType }}</strong>
+                  — {{ myOffer.quantityIn }} unité(s) à 💰 {{ myOffer.pricePerResource }} / unité
+                </p>
+                <button
+                  class="btn-delete"
+                  (click)="deleteMyOffer()"
+                  [disabled]="loading()"
+                  aria-label="Supprimer mon offre en cours">
+                  🗑️ Supprimer mon offre
+                </button>
+              </section>
+            }
+
+            <section aria-labelledby="sell-form-title">
+              <h3 id="sell-form-title">{{ myOffer ? 'Modifier mon offre' : 'Publier une offre' }}</h3>
+              <p class="fields-required">Les champs marqués d'un <abbr title="obligatoire">*</abbr> sont obligatoires.</p>
+
+              <form (submit)="$event.preventDefault(); publishOffer()" class="sell-form">
+
+                <div class="form-row">
+                  <label for="sell-resource">Ressource *</label>
+                  <select id="sell-resource" name="sell-resource" [(ngModel)]="sellResource" required>
+                    @for (r of resources; track r) {
+                      <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="form-row">
+                  <label for="sell-qty">Quantité à vendre *</label>
+                  <input
+                    type="number"
+                    id="sell-qty"
+                    name="sell-qty"
+                    [(ngModel)]="sellQty"
+                    min="1"
+                    required
+                    aria-describedby="sell-qty-hint"
+                  />
+                  <small id="sell-qty-hint">Le stock sera immédiatement débité.</small>
+                </div>
+
+                <div class="form-row">
+                  <label for="sell-price">Prix par unité (OR) *</label>
+                  <input
+                    type="number"
+                    id="sell-price"
+                    name="sell-price"
+                    [(ngModel)]="sellPrice"
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  class="btn-publish"
+                  [disabled]="loading() || !sellQty || !sellPrice">
+                  {{ myOffer ? '✏️ Mettre à jour' : '📤 Publier' }}
+                </button>
+              </form>
+            </section>
+
+          </div>
+        }
+
+      }<!-- /marketDiscovered -->
+    </div><!-- /.market-panel -->
+  </div><!-- /.market-overlay -->
+}
+

@@ -119,6 +119,35 @@
 .btn-taxes { border-color: var(--gold); }
 .btn-taxes:hover { background: rgba(240, 192, 64, 0.15); }
 
+/* Bot toggle */
+.btn-bot {
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+.btn-bot:hover { background: rgba(255,255,255,0.06); border-color: var(--text-secondary); color: var(--text-primary); }
+
+.btn-bot--running {
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  animation: bot-pulse 2s ease-in-out infinite;
+}
+@keyframes bot-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(78, 204, 163, 0.3); }
+  50%       { box-shadow: 0 0 14px rgba(78, 204, 163, 0.7); }
+}
+
+/* Statut bot */
+.bot-status {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 @media (max-width: 900px) {
   .control-panel { gap: 20px; padding: 8px 12px; }
   .btn-action { padding: 8px 10px; font-size: 0.75rem; }

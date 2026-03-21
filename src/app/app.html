@@ -48,8 +48,8 @@
         <span class="status-quotient">📈 Quotient: {{ p.quotient }}</span>
       }
       @if (game.ship(); as ship) {
-        <span class="status-ship">⛵ {{ ship.level.name }} — {{ ship.availableMove }}/{{ ship.level.maxMovement }} mvt</span>
-        <span class="status-pos">📍 ({{ ship.currentPosition.x }}, {{ ship.currentPosition.y }})</span>
+        <span class="status-ship">⛵ {{ ship.level?.name ?? '?' }} — {{ ship.availableMove }}/{{ ship.level?.maxMovement ?? '?' }} mvt</span>
+        <span class="status-pos">📍 ({{ ship.currentPosition?.x }}, {{ ship.currentPosition?.y }})</span>
       }
       <button class="btn-logout" (click)="logout()" title="Déconnexion">⏏️</button>
     </div>
@@ -93,6 +93,9 @@
 
   <!-- Controls -->
   <app-controls (action)="onAction($event)" />
+
+  <!-- Marketplace (dialogue superposé) -->
+  <app-marketplace />
 
   <!-- Modal -->
   @if (game.modalVisible()) {

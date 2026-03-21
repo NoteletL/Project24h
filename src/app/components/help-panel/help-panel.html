@@ -1,0 +1,178 @@
+<!-- Bouton déclencheur (affiché avec les autres boutons d'action) -->
+<button
+  class="btn-help"
+  (click)="open()"
+  aria-haspopup="dialog"
+  title="Aide — Règles et légende du jeu (H)"
+  #triggerBtn>
+  🕹️ Aide
+</button>
+
+<!-- Panneau d'aide (dialogue accessible) -->
+@if (isOpen()) {
+  <div
+    class="help-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="help-title"
+    (click)="onBackdropClick($event)">
+
+    <div class="help-panel" (keydown)="onKeydown($event)" #panelEl>
+
+      <!-- En-tête collant -->
+      <div class="help-header">
+        <h2 id="help-title">🕹️ Guide du jeu 3026</h2>
+        <button class="btn-close" (click)="close()" aria-label="Fermer l'aide" #closeBtn>✕</button>
+      </div>
+
+      <div class="help-body">
+
+        <!-- Objectif -->
+        <section aria-labelledby="help-objectif">
+          <h3 id="help-objectif">🎯 Objectif</h3>
+          <ul>
+            <li>Construire un bateau et explorer la carte.</li>
+            <li>Découvrir un maximum d'îles pour augmenter votre production de ressources.</li>
+            <li>Revenir sur votre île de départ pour <strong>valider</strong> chaque expédition.</li>
+            <li>Éviter les zones à risque (20&nbsp;% de chance de tomber en panne).</li>
+            <li>Commercer sur la Marketplace pour obtenir les ressources manquantes.</li>
+          </ul>
+        </section>
+
+        <!-- Légende de la carte -->
+        <section aria-labelledby="help-carte">
+          <h3 id="help-carte">🗺️ Légende de la carte</h3>
+          <table>
+            <caption class="sr-only">Types de cases affichées sur la carte du jeu</caption>
+            <thead>
+              <tr>
+                <th scope="col">Case</th>
+                <th scope="col">Nom</th>
+                <th scope="col">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="swatch swatch-sea" role="img" aria-label="Carré bleu foncé"></span></td>
+                <td>🌊 SEA</td>
+                <td>Océan — navigation libre</td>
+              </tr>
+              <tr>
+                <td><span class="swatch swatch-sand" role="img" aria-label="Carré beige doré"></span></td>
+                <td>🏖️ SAND</td>
+                <td>Plage / Île — source de ressources</td>
+              </tr>
+              <tr>
+                <td><span class="swatch swatch-rocks" role="img" aria-label="Carré gris"></span></td>
+                <td>🪨 ROCKS</td>
+                <td>Rochers</td>
+              </tr>
+              <tr>
+                <td><span class="swatch swatch-fog" role="img" aria-label="Carré noir"></span></td>
+                <td>⬛ Brouillard</td>
+                <td>Zone non encore explorée</td>
+              </tr>
+              <tr>
+                <td><span class="swatch swatch-ship" role="img" aria-label="Carré vert lumineux">⛵</span></td>
+                <td>⛵ Bateau</td>
+                <td>Votre position actuelle</td>
+              </tr>
+              <tr>
+                <td><span class="swatch swatch-risk" role="img" aria-label="Carré avec bordure rouge"></span></td>
+                <td>⚠️ Zone à risque</td>
+                <td>20&nbsp;% de chance de panne à chaque déplacement</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Ressources -->
+        <section aria-labelledby="help-ressources">
+          <h3 id="help-ressources">📦 Ressources</h3>
+          <dl class="resources-list">
+            <div class="dl-row"><dt>🪵 BOISIUM</dt><dd>Ressource primaire — récoltée toutes les 5&nbsp;min</dd></div>
+            <div class="dl-row"><dt>⛏️ FERONIUM</dt><dd>Ressource primaire — récoltée toutes les 5&nbsp;min</dd></div>
+            <div class="dl-row"><dt>🪨 CHARBONIUM</dt><dd>Ressource primaire — récoltée toutes les 5&nbsp;min</dd></div>
+            <div class="dl-row"><dt>💰 OR</dt><dd>Monnaie d'échange — obtenu en découvrant des îles ou en vendant</dd></div>
+          </dl>
+        </section>
+
+        <!-- Commandes -->
+        <section aria-labelledby="help-commandes">
+          <h3 id="help-commandes">🎮 Commandes</h3>
+          <table>
+            <caption class="sr-only">Boutons d'action et raccourcis clavier associés</caption>
+            <thead>
+              <tr>
+                <th scope="col">Bouton</th>
+                <th scope="col">Touche</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>⬆️&nbsp;N &nbsp;⬇️&nbsp;S &nbsp;⬅️&nbsp;W &nbsp;➡️&nbsp;E</td>
+                <td><kbd>↑ ↓ ← →</kbd> ou <kbd>Z S Q D</kbd></td>
+                <td>Déplacer le bateau dans les 4 directions cardinales</td>
+              </tr>
+              <tr>
+                <td>↖ NW &nbsp;↗ NE &nbsp;↙ SW &nbsp;↘ SE</td>
+                <td>—</td>
+                <td>Déplacement en diagonale</td>
+              </tr>
+              <tr>
+                <td>🔨 Construire</td>
+                <td><kbd>B</kbd></td>
+                <td>Construit votre premier bateau sur votre île de départ</td>
+              </tr>
+              <tr>
+                <td>⬆️ Améliorer bateau</td>
+                <td><kbd>U</kbd></td>
+                <td>Améliore la vitesse, la portée et la visibilité du bateau</td>
+              </tr>
+              <tr>
+                <td>🏝️ Îles</td>
+                <td><kbd>I</kbd></td>
+                <td>Liste vos îles découvertes et leurs bonus de production</td>
+              </tr>
+              <tr>
+                <td>🏪 Marketplace</td>
+                <td><kbd>M</kbd></td>
+                <td>Échangez des ressources avec d'autres joueurs (déblocage requis)</td>
+              </tr>
+              <tr>
+                <td>💸 Taxes</td>
+                <td><kbd>T</kbd></td>
+                <td>Consultez et soldez vos amendes (rescue, tentative de triche…)</td>
+              </tr>
+              <tr>
+                <td>🔄 Rafraîchir</td>
+                <td><kbd>R</kbd></td>
+                <td>Met à jour la position, les ressources et les données joueur</td>
+              </tr>
+              <tr>
+                <td>🕹️ Aide</td>
+                <td><kbd>H</kbd></td>
+                <td>Ouvre / ferme ce panneau d'aide</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Conseils -->
+        <section aria-labelledby="help-conseils">
+          <h3 id="help-conseils">💡 Conseils</h3>
+          <ul>
+            <li>Les points de mouvement se rechargent en approchant une île <strong>déjà validée</strong>.</li>
+            <li>Revenez toujours à quai sur votre île pour valider une expédition.</li>
+            <li>Énergie à 0 en mer = bateau remorqué (taxe à payer).</li>
+            <li>Découvrir une île en premier rapporte un bonus en OR plus élevé.</li>
+            <li>Un entrepôt plein = ressources perdues. Pensez à l'agrandir.</li>
+          </ul>
+        </section>
+
+      </div><!-- /.help-body -->
+    </div><!-- /.help-panel -->
+  </div><!-- /.help-overlay -->
+}
+

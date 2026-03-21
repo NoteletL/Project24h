@@ -21,37 +21,9 @@ export class GameStateService {
   // Map — cellules découvertes (accumulées, persistées dans localStorage)
   readonly knownCells = signal<Map<string, Cell>>(this.loadCellsFromStorage());
 
-  // ...existing code...
-
-  constructor() {
-    // Persiste automatiquement les cellules à chaque changement
-    effect(() => {
-      const entries = Array.from(this.knownCells().entries());
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    });
-  }
-
-  /** Charge les cellules depuis localStorage (appelé à l'initialisation) */
-  private loadCellsFromStorage(): Map<string, Cell> {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const entries: [string, Cell][] = JSON.parse(raw);
-        return new Map(entries);
-      }
-    } catch {
-      // Données corrompues : on repart d'une map vide
-    }
-    return new Map();
-  }
-
-  /** Efface les cellules découvertes (mémoire + localStorage) */
-  clearCells() {
-    this.knownCells.set(new Map());
-  }
-
-  // Ship
-  readonly ship = signal<Ship | null>(null);
+  // Ship — persisté dans localStorage pour survie au rechargement
+  readonly shipId = signal<string>(localStorage.getItem('3026_ship_id') ?? '');
+  readonly ship   = signal<Ship | null>(this.loadShipFromStorage());
 
   // Resources (tableau tel que retourné par l'API)
   readonly resources = signal<Resource[]>([]);
@@ -93,5 +65,46 @@ export class GameStateService {
 
   hideModal() {
     this.modalVisible.set(false);
+  }
+
+  constructor() {
+    // Persiste automatiquement les cellules à chaque changement
+    effect(() => {
+      const entries = Array.from(this.knownCells().entries());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    });
+    // Persiste l'état du bateau à chaque changement
+    effect(() => {
+      const s = this.ship();
+      if (s) localStorage.setItem('3026_ship', JSON.stringify(s));
+      else   localStorage.removeItem('3026_ship');
+    });
+  }
+
+  /** Charge les cellules depuis localStorage (appelé à l'initialisation) */
+  private loadCellsFromStorage(): Map<string, Cell> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const entries: [string, Cell][] = JSON.parse(raw);
+        return new Map(entries);
+      }
+    } catch {
+      // Données corrompues : on repart d'une map vide
+    }
+    return new Map();
+  }
+
+  /** Efface les cellules découvertes (mémoire + localStorage) */
+  clearCells() {
+    this.knownCells.set(new Map());
+  }
+
+  /** Charge le bateau depuis localStorage */
+  private loadShipFromStorage(): Ship | null {
+    try {
+      const raw = localStorage.getItem('3026_ship');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
   }
 }
