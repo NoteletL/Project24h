@@ -7,6 +7,7 @@ import { MarketplaceComponent } from './components/marketplace/marketplace';
 import { ApiService, API_CONFIG, Direction, Ship } from './services/api.service';
 import { GameStateService } from './services/game-state.service';
 import { BotService } from './services/bot.service';
+import { PriceHistoryService } from './services/price-history.service';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +19,8 @@ import { BotService } from './services/bot.service';
 export class App implements OnInit {
   private api = inject(ApiService);
   readonly game = inject(GameStateService);
-  private readonly bot = inject(BotService);
+  private readonly bot          = inject(BotService);
+  private readonly priceHistory = inject(PriceHistoryService);
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
@@ -86,7 +88,8 @@ export class App implements OnInit {
     this.game.token.set('');
     this.game.isAuthenticated.set(false);
     this.game.log('Déconnecté.', 'info');
-    this.bot.stop(); // Arrêter le bot au logout
+    this.bot.stop();
+    this.priceHistory.stop();
   }
 
   // --- Actions ---
@@ -276,6 +279,10 @@ export class App implements OnInit {
       this.refreshResources(),
       this.refreshShip(),
     ]);
+    // Démarrer le polling des prix si la marketplace est débloquée
+    if (this.game.playerDetails()?.marketPlaceDiscovered) {
+      this.priceHistory.start();
+    }
   }
 
   private async refreshPlayer() {

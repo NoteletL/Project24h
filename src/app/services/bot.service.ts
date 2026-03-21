@@ -69,6 +69,14 @@ export class BotService {
           budget -= cost;
           bought += qty;
           this.purchaseCount.update(c => c + qty);
+          this.game.addTransaction({
+            timestamp:    new Date(),
+            resourceType: offer.resourceType,
+            quantity:     qty,
+            pricePerUnit: offer.pricePerResource,
+            totalCost:    cost,
+            source:       'bot',
+          });
           this.game.log(
             `🤖 ${qty}× ${offer.resourceType} @ ${offer.pricePerResource} OR/u = ${cost} OR`,
             'action'
@@ -100,4 +108,3 @@ export class BotService {
     return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 }
-

@@ -25,42 +25,28 @@
 
         <!-- Onglets -->
         <div class="market-tabs" role="tablist" aria-label="Onglets Marketplace">
-          <button
-            role="tab"
-            [attr.aria-selected]="activeTab() === 'buy'"
-            [class.active]="activeTab() === 'buy'"
-            id="tab-btn-buy"
-            aria-controls="tab-panel-buy"
-            (click)="setTab('buy')">
-            📥 Acheter
+          <button role="tab" [attr.aria-selected]="activeTab() === 'buy'"
+            [class.active]="activeTab() === 'buy'" id="tab-btn-buy"
+            aria-controls="tab-panel-buy" (click)="setTab('buy')">📥 Acheter</button>
+          <button role="tab" [attr.aria-selected]="activeTab() === 'sell'"
+            [class.active]="activeTab() === 'sell'" id="tab-btn-sell"
+            aria-controls="tab-panel-sell" (click)="setTab('sell')">📤 Vendre</button>
+          <button role="tab" [attr.aria-selected]="activeTab() === 'chart'"
+            [class.active]="activeTab() === 'chart'" id="tab-btn-chart"
+            aria-controls="tab-panel-chart" (click)="setTab('chart')">📊 Prix</button>
+          <button role="tab" [attr.aria-selected]="activeTab() === 'history'"
+            [class.active]="activeTab() === 'history'" id="tab-btn-history"
+            aria-controls="tab-panel-history" (click)="setTab('history')">
+            📋 Historique @if (transactions.length) { <span class="badge">{{ transactions.length }}</span> }
           </button>
-          <button
-            role="tab"
-            [attr.aria-selected]="activeTab() === 'sell'"
-            [class.active]="activeTab() === 'sell'"
-            id="tab-btn-sell"
-            aria-controls="tab-panel-sell"
-            (click)="setTab('sell')">
-            📤 Vendre
-          </button>
-          <button
-            class="btn-refresh"
-            (click)="loadOffers()"
-            [disabled]="loading()"
-            aria-label="Rafraîchir les offres">
-            🔄
-          </button>
+          <button class="btn-refresh" (click)="loadOffers()" [disabled]="loading()" aria-label="Rafraîchir les offres">🔄</button>
         </div>
 
         <!-- Messages de retour -->
-        @if (error()) {
-          <p class="msg-error" role="alert" aria-live="assertive">⚠️ {{ error() }}</p>
-        }
-        @if (success()) {
-          <p class="msg-success" role="status" aria-live="polite">{{ success() }}</p>
-        }
+        @if (error())   { <p class="msg-error"   role="alert"  aria-live="assertive">⚠️ {{ error() }}</p> }
+        @if (success()) { <p class="msg-success"  role="status" aria-live="polite">{{ success() }}</p> }
 
-        <!-- Panneau Acheter -->
+        <!-- ── Panneau Acheter ── -->
         @if (activeTab() === 'buy') {
           <div id="tab-panel-buy" role="tabpanel" aria-labelledby="tab-btn-buy" class="tab-panel">
             @if (loading()) {
@@ -81,46 +67,23 @@
                 </thead>
                 <tbody>
                   @for (offer of otherOffers; track offer.id) {
-                    <tr>
+                    <tr [class.row-cheap]="offer.pricePerResource <= 5">
                       <td>{{ resourceIcon(offer.resourceType) }} {{ offer.resourceType }}</td>
                       <td>{{ offer.owner?.name ?? '—' }}</td>
                       <td>{{ offer.quantityIn }}</td>
                       <td>💰 {{ offer.pricePerResource }}</td>
                       <td class="td-action">
                         @if (buyingOfferId() === offer.id) {
-                          <label [for]="'qty-' + offer.id" class="sr-only">
-                            Quantité à acheter (max {{ offer.quantityIn }})
-                          </label>
-                          <input
-                            type="number"
-                            [id]="'qty-' + offer.id"
-                            class="qty-input"
-                            [(ngModel)]="buyQty"
-                            [name]="'qty-' + offer.id"
-                            min="1"
-                            [max]="offer.quantityIn"
-                            aria-label="Quantité à acheter"
-                          />
-                          <button
-                            class="btn-confirm"
-                            (click)="confirmBuy()"
-                            [disabled]="loading()"
-                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unités de ' + offer.resourceType">
-                            ✓
-                          </button>
-                          <button
-                            class="btn-cancel"
-                            (click)="cancelBuy()"
-                            aria-label="Annuler l'achat">
-                            ✕
-                          </button>
+                          <label [for]="'qty-' + offer.id" class="sr-only">Quantité (max {{ offer.quantityIn }})</label>
+                          <input type="number" [id]="'qty-' + offer.id" class="qty-input"
+                            [(ngModel)]="buyQty" [name]="'qty-' + offer.id"
+                            min="1" [max]="offer.quantityIn" aria-label="Quantité à acheter"/>
+                          <button class="btn-confirm" (click)="confirmBuy()" [disabled]="loading()"
+                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unités de ' + offer.resourceType">✓</button>
+                          <button class="btn-cancel" (click)="cancelBuy()" aria-label="Annuler l'achat">✕</button>
                         } @else {
-                          <button
-                            class="btn-buy"
-                            (click)="startBuy(offer)"
-                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' de ' + (offer.owner?.name ?? 'inconnu')">
-                            Acheter
-                          </button>
+                          <button class="btn-buy" (click)="startBuy(offer)"
+                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' de ' + (offer.owner?.name ?? 'inconnu')">Acheter</button>
                         }
                       </td>
                     </tr>
@@ -131,24 +94,17 @@
           </div>
         }
 
-        <!-- Panneau Vendre -->
+        <!-- ── Panneau Vendre ── -->
         @if (activeTab() === 'sell') {
           <div id="tab-panel-sell" role="tabpanel" aria-labelledby="tab-btn-sell" class="tab-panel">
 
             @if (myOffer) {
               <section class="my-offer" aria-labelledby="my-offer-title">
                 <h3 id="my-offer-title">Mon offre en cours</h3>
-                <p>
-                  {{ resourceIcon(myOffer.resourceType) }} <strong>{{ myOffer.resourceType }}</strong>
-                  — {{ myOffer.quantityIn }} unité(s) à 💰 {{ myOffer.pricePerResource }} / unité
-                </p>
-                <button
-                  class="btn-delete"
-                  (click)="deleteMyOffer()"
-                  [disabled]="loading()"
-                  aria-label="Supprimer mon offre en cours">
-                  🗑️ Supprimer mon offre
-                </button>
+                <p>{{ resourceIcon(myOffer.resourceType) }} <strong>{{ myOffer.resourceType }}</strong>
+                  — {{ myOffer.quantityIn }} unité(s) à 💰 {{ myOffer.pricePerResource }} / unité</p>
+                <button class="btn-delete" (click)="deleteMyOffer()" [disabled]="loading()"
+                  aria-label="Supprimer mon offre en cours">🗑️ Supprimer mon offre</button>
               </section>
             }
 
@@ -161,42 +117,23 @@
                 <div class="form-row">
                   <label for="sell-resource">Ressource *</label>
                   <select id="sell-resource" name="sell-resource" [(ngModel)]="sellResource" required>
-                    @for (r of resources; track r) {
-                      <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option>
-                    }
+                    @for (r of resources; track r) { <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option> }
                   </select>
                 </div>
 
                 <div class="form-row">
                   <label for="sell-qty">Quantité à vendre *</label>
-                  <input
-                    type="number"
-                    id="sell-qty"
-                    name="sell-qty"
-                    [(ngModel)]="sellQty"
-                    min="1"
-                    required
-                    aria-describedby="sell-qty-hint"
-                  />
+                  <input type="number" id="sell-qty" name="sell-qty" [(ngModel)]="sellQty"
+                    min="1" required aria-describedby="sell-qty-hint"/>
                   <small id="sell-qty-hint">Le stock sera immédiatement débité.</small>
                 </div>
 
                 <div class="form-row">
                   <label for="sell-price">Prix par unité (OR) *</label>
-                  <input
-                    type="number"
-                    id="sell-price"
-                    name="sell-price"
-                    [(ngModel)]="sellPrice"
-                    min="1"
-                    required
-                  />
+                  <input type="number" id="sell-price" name="sell-price" [(ngModel)]="sellPrice" min="1" required/>
                 </div>
 
-                <button
-                  type="submit"
-                  class="btn-publish"
-                  [disabled]="loading() || !sellQty || !sellPrice">
+                <button type="submit" class="btn-publish" [disabled]="loading() || !sellQty || !sellPrice">
                   {{ myOffer ? '✏️ Mettre à jour' : '📤 Publier' }}
                 </button>
               </form>
@@ -205,8 +142,112 @@
           </div>
         }
 
+        <!-- ── Panneau Prix (graphique SVG) ── -->
+        @if (activeTab() === 'chart') {
+          <div id="tab-panel-chart" role="tabpanel" aria-labelledby="tab-btn-chart" class="tab-panel">
+            @if (priceHistory.isPolling()) {
+              <p class="poll-status" aria-live="polite">🔴 Polling actif — mise à jour toutes les 10 s</p>
+            }
+            @if (chartData; as cd) {
+              <figure class="chart-figure">
+                <figcaption class="sr-only">Évolution du prix moyen BOISIUM et FERONIUM. Seuil bot : 5 OR/u.</figcaption>
+                <svg [attr.viewBox]="'0 0 ' + cd.CW + ' ' + cd.CH" class="price-chart"
+                     role="img" aria-label="Courbe des prix BOISIUM et FERONIUM">
+
+                  <!-- Lignes de grille horizontales + labels Y -->
+                  @for (tick of cd.yTicks; track tick.v) {
+                    <line [attr.x1]="cd.PAD.l" [attr.y1]="tick.y"
+                          [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="tick.y"
+                          stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+                    <text [attr.x]="tick.x" [attr.y]="tick.y"
+                          text-anchor="end" dominant-baseline="middle"
+                          fill="#666" font-size="9">{{ tick.v }}</text>
+                  }
+
+                  <!-- Seuil bot à 5 OR (ligne rouge pointillée) -->
+                  <line [attr.x1]="cd.PAD.l" [attr.y1]="cd.thresholdY"
+                        [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="cd.thresholdY"
+                        stroke="#e94560" stroke-dasharray="4,3" stroke-width="1.5" opacity="0.8"/>
+                  <text [attr.x]="cd.CW - cd.PAD.r + 2" [attr.y]="cd.thresholdY"
+                        fill="#e94560" font-size="8" dominant-baseline="middle">5</text>
+
+                  <!-- Courbes de prix -->
+                  @for (line of cd.lines; track line.key) {
+                    @if (line.hasData) {
+                      <polyline [attr.points]="line.points" [attr.stroke]="line.color"
+                                fill="none" stroke-width="2"
+                                stroke-linejoin="round" stroke-linecap="round"/>
+                    }
+                  }
+
+                  <!-- Labels axe X -->
+                  @for (lbl of cd.xLabels; track lbl.label) {
+                    <text [attr.x]="lbl.x" [attr.y]="cd.CH - 4"
+                          text-anchor="middle" fill="#555" font-size="8">{{ lbl.label }}</text>
+                  }
+                </svg>
+              </figure>
+
+              <!-- Légende -->
+              <div class="chart-legend" role="list" aria-label="Légende du graphique">
+                @for (line of cd.lines; track line.key) {
+                  <span class="legend-item" role="listitem">
+                    <span class="legend-dot" [style.background]="line.color" aria-hidden="true"></span>
+                    {{ line.label }}
+                  </span>
+                }
+                <span class="legend-item" role="listitem">
+                  <span class="legend-dash" aria-hidden="true"></span>
+                  Seuil bot (5 OR)
+                </span>
+              </div>
+            } @else {
+              <p class="empty">
+                En attente de données…
+                <small>La Marketplace doit être découverte. Les données apparaissent après le premier poll (10 s).</small>
+              </p>
+            }
+          </div>
+        }
+
+        <!-- ── Panneau Historique ── -->
+        @if (activeTab() === 'history') {
+          <div id="tab-panel-history" role="tabpanel" aria-labelledby="tab-btn-history" class="tab-panel">
+            @if (transactions.length === 0) {
+              <p class="empty">Aucune transaction enregistrée pour cette session.</p>
+            } @else {
+              <table>
+                <caption class="sr-only">Historique des transactions marketplace</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Heure</th>
+                    <th scope="col">Ressource</th>
+                    <th scope="col">Qté</th>
+                    <th scope="col">Prix/u</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (tx of transactions; track tx.timestamp) {
+                    <tr>
+                      <td>{{ fmtTime(tx.timestamp) }}</td>
+                      <td>{{ resourceIcon(tx.resourceType) }} {{ tx.resourceType }}</td>
+                      <td>{{ tx.quantity }}</td>
+                      <td>💰 {{ tx.pricePerUnit }}</td>
+                      <td>💰 {{ tx.totalCost }}</td>
+                      <td [attr.aria-label]="tx.source === 'bot' ? 'Bot automatique' : 'Achat manuel'">
+                        {{ tx.source === 'bot' ? '🤖' : '👤' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        }
+
       }<!-- /marketDiscovered -->
     </div><!-- /.market-panel -->
   </div><!-- /.market-overlay -->
 }
-

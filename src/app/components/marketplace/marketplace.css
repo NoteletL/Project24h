@@ -319,3 +319,78 @@ section h3 {
   .td-action { flex-direction: column; align-items: flex-start; }
 }
 
+/* Offre bon marché (≤ seuil bot) */
+.row-cheap td { color: var(--green); }
+
+/* Badge compteur transactions */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--accent-light);
+  color: var(--text-primary);
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Statut polling */
+.poll-status {
+  font-size: 0.75rem;
+  color: var(--red);
+  padding: 4px 0 2px;
+}
+
+/* ── Graphique SVG ── */
+.chart-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.price-chart {
+  width: 100%;
+  height: auto;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  overflow: visible;
+}
+
+/* Légende */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dash {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  background: #e94560;
+  border-top: 2px dashed #e94560;
+  flex-shrink: 0;
+}

@@ -9,6 +9,15 @@ export interface LogEntry {
   timestamp: Date;
 }
 
+export interface MarketTransaction {
+  timestamp: Date;
+  resourceType: string;
+  quantity: number;
+  pricePerUnit: number;
+  totalCost: number;
+  source: 'manual' | 'bot';
+}
+
 @Injectable({ providedIn: 'root' })
 export class GameStateService {
   // Auth
@@ -38,6 +47,9 @@ export class GameStateService {
   readonly modalTitle = signal('');
   readonly modalBody = signal('');
 
+  // Historique des transactions marketplace (200 max)
+  readonly transactions = signal<MarketTransaction[]>([]);
+
   /** Ajoute ou met à jour des cellules dans la map connue */
   addCells(cells: Cell[]) {
     this.knownCells.update(map => {
@@ -65,6 +77,10 @@ export class GameStateService {
 
   hideModal() {
     this.modalVisible.set(false);
+  }
+
+  addTransaction(t: MarketTransaction): void {
+    this.transactions.update(ts => [t, ...ts].slice(0, 200));
   }
 
   constructor() {
