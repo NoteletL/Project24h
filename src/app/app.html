@@ -1,6 +1,6 @@
 @if (!game.isAuthenticated()) {
   <!-- Login Screen -->
-  <div class="login-screen">
+  <main id="maincontent" class="login-screen">
     <h1>🌊 3026</h1>
     <p class="subtitle">Explorez. Échangez. Découvrez.</p>
 
@@ -8,7 +8,9 @@
     <div class="login-section">
       <h2>1. Obtenir un code d'inscription</h2>
       <div class="input-row">
-        <input type="email" placeholder="Votre email" [(ngModel)]="mailInput" />
+        <label for="mail-input" class="sr-only">Votre adresse email</label>
+        <input id="mail-input" type="email" placeholder="Votre email" [(ngModel)]="mailInput"
+          autocomplete="email" aria-required="true" />
         <button class="btn-action btn-upgrade" (click)="fetchSignupCode()">Envoyer</button>
       </div>
     </div>
@@ -17,8 +19,12 @@
     <div class="login-section">
       <h2>2. Créer son équipe</h2>
       <div class="input-col">
-        <input type="text" placeholder="Code d'inscription reçu par mail" [(ngModel)]="signupCode" />
-        <input type="text" placeholder="Nom d'équipe (alphanumérique)" [(ngModel)]="teamName" />
+        <label for="signup-code" class="sr-only">Code d'inscription reçu par mail</label>
+        <input id="signup-code" type="text" placeholder="Code d'inscription reçu par mail"
+          [(ngModel)]="signupCode" aria-required="true"/>
+        <label for="team-name" class="sr-only">Nom d'équipe (alphanumérique)</label>
+        <input id="team-name" type="text" placeholder="Nom d'équipe (alphanumérique)"
+          [(ngModel)]="teamName" autocomplete="username" aria-required="true"/>
         <button class="btn-action btn-build" (click)="registerPlayer()">S'inscrire</button>
       </div>
     </div>
@@ -27,7 +33,9 @@
     <div class="login-section">
       <h2>Déjà inscrit ? Connectez-vous avec votre codingGameId</h2>
       <div class="input-row">
-        <input type="text" placeholder="Votre codingGameId (token)" [(ngModel)]="tokenInput" />
+        <label for="token-input" class="sr-only">Votre codingGameId</label>
+        <input id="token-input" type="text" placeholder="Votre codingGameId (token)"
+          [(ngModel)]="tokenInput" autocomplete="off" aria-required="true"/>
         <button class="btn-action btn-build" (click)="connectWithToken()">Connexion</button>
       </div>
     </div>
@@ -35,11 +43,11 @@
     <section class="info-panel" style="margin-top:16px;width:100%;max-width:500px;">
       <app-log-panel />
     </section>
-  </div>
+  </main>
 
 } @else {
   <!-- Main Game Interface -->
-  <header class="header">
+  <header role="banner" class="header">
     <h1>🌊 3026</h1>
     <div class="status-bar">
       @if (game.playerDetails(); as p) {
@@ -51,60 +59,70 @@
         <span class="status-ship">⛵ {{ ship.level?.name ?? '?' }} — {{ ship.availableMove }}/{{ ship.level?.maxMovement ?? '?' }} mvt</span>
         <span class="status-pos">📍 ({{ ship.currentPosition?.x }}, {{ ship.currentPosition?.y }})</span>
       }
-      <button class="btn-logout" (click)="logout()" title="Déconnexion">⏏️</button>
+      <button class="btn-logout" (click)="logout()" aria-label="Se déconnecter">⏏️ Déconnexion</button>
+      <button class="btn-reset" (click)="resetDevice()" aria-label="Réinitialiser l'appareil (efface toutes les données locales)">🗑️ Réinit.</button>
     </div>
   </header>
 
   <!-- Resources bar -->
-  <div class="resources-bar">
+  <div class="resources-bar" role="region" aria-label="Ressources du joueur">
     @for (res of game.resources(); track res.type) {
       <div class="res-item">
-        <span class="res-icon">
+        <span class="res-icon" aria-hidden="true">
           @switch (res.type) {
             @case ('BOISIUM')    { 🪵 }
             @case ('FERONIUM')   { ⛏️ }
             @case ('CHARBONIUM') { 🪨 }
           }
         </span>
-        <span>{{ res.type }}: {{ res.quantity }}</span>
+        <span>{{ res.type }} : {{ res.quantity }}</span>
       </div>
     }
     @if (game.playerDetails(); as p) {
       <div class="res-item res-gold">
-        <span class="res-icon">💰</span>
-        <span>OR: {{ p.money }}</span>
+        <span class="res-icon" aria-hidden="true">💰</span>
+        <span>OR : {{ p.money }}</span>
       </div>
       <div class="res-item res-islands">
-        <span class="res-icon">🏝️</span>
-        <span>Îles: {{ p.discoveredIslands.length }}</span>
+        <span class="res-icon" aria-hidden="true">🏝️</span>
+        <span>Îles : {{ p.discoveredIslands.length }}</span>
       </div>
     }
   </div>
 
   <!-- Map -->
-  <section class="map-section">
-    <app-game-map />
-  </section>
+  <main id="maincontent" role="main">
+    <section class="map-section" aria-label="Carte du monde">
+      <app-game-map />
+    </section>
+  </main>
 
   <!-- Log -->
-  <section class="info-panel">
+  <section class="info-panel" aria-label="Journal des actions">
     <app-log-panel />
   </section>
 
   <!-- Controls -->
-  <app-controls (action)="onAction($event)" />
+  <nav aria-label="Contrôles du joueur">
+    <app-controls (action)="onAction($event)" />
+  </nav>
 
   <!-- Marketplace (dialogue superposé) -->
   <app-marketplace />
 
   <!-- Modal -->
   @if (game.modalVisible()) {
-    <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-overlay" role="dialog" aria-modal="true"
+         aria-labelledby="modal-heading" (click)="closeModal()">
       <div class="modal-content" (click)="$event.stopPropagation()">
-        <button class="btn-modal-close" (click)="closeModal()">✕</button>
-        <h2 class="modal-title">{{ game.modalTitle() }}</h2>
+        <button class="btn-modal-close" (click)="closeModal()" aria-label="Fermer la boîte de dialogue">✕</button>
+        <h2 id="modal-heading" class="modal-title">{{ game.modalTitle() }}</h2>
         <div class="modal-body" [innerHTML]="game.modalBody()"></div>
       </div>
     </div>
   }
+
+  <footer role="contentinfo" class="sr-only">
+    3026 — Jeu de stratégie multijoueur
+  </footer>
 }

@@ -11,12 +11,21 @@
       <!-- En-tête -->
       <div class="market-header">
         <h2 id="market-title">🏪 Marketplace</h2>
+        <div class="header-meta" aria-live="polite" aria-atomic="true">
+          @if (brokerStatus() === 'connected') {
+            <span class="broker-dot broker-on" role="img" aria-label="Broker en ligne">🟢</span>
+          } @else if (brokerStatus() === 'error') {
+            <span class="broker-dot broker-err" role="img" aria-label="Broker hors ligne">🔴</span>
+          } @else {
+            <span class="broker-dot" role="img" aria-label="Broker inactif">⚫</span>
+          }
+        </div>
         <button class="btn-close" (click)="close()" aria-label="Fermer la Marketplace" #closeBtn>✕</button>
       </div>
 
-      @if (!marketDiscovered) {
+      @if (!marketDiscovered()) {
         <!-- Marketplace non débloquée -->
-        <div class="market-locked">
+        <div class="market-locked" role="status">
           <p>🔒 La Marketplace n'est pas encore découverte.</p>
           <p>Explorez la carte et revenez valider votre expédition sur votre île de départ pour la débloquer.</p>
         </div>
@@ -25,48 +34,55 @@
 
         <!-- Onglets -->
         <div class="market-tabs" role="tablist" aria-label="Onglets Marketplace">
-          <button role="tab" [attr.aria-selected]="activeTab() === 'buy'"
-            [class.active]="activeTab() === 'buy'" id="tab-btn-buy"
-            aria-controls="tab-panel-buy" (click)="setTab('buy')">📥 Acheter</button>
-          <button role="tab" [attr.aria-selected]="activeTab() === 'sell'"
-            [class.active]="activeTab() === 'sell'" id="tab-btn-sell"
-            aria-controls="tab-panel-sell" (click)="setTab('sell')">📤 Vendre</button>
-          <button role="tab" [attr.aria-selected]="activeTab() === 'chart'"
-            [class.active]="activeTab() === 'chart'" id="tab-btn-chart"
-            aria-controls="tab-panel-chart" (click)="setTab('chart')">📊 Prix</button>
-          <button role="tab" [attr.aria-selected]="activeTab() === 'history'"
-            [class.active]="activeTab() === 'history'" id="tab-btn-history"
-            aria-controls="tab-panel-history" (click)="setTab('history')">
-            📋 Historique @if (transactions.length) { <span class="badge">{{ transactions.length }}</span> }
-          </button>
-          <button class="btn-refresh" (click)="loadOffers()" [disabled]="loading()" aria-label="Rafraîchir les offres">🔄</button>
+          @for (tab of [
+            {id:'buy',     label:'📥 Acheter'},
+            {id:'sell',    label:'📤 Vendre'},
+            {id:'chart',   label:'📊 Prix'},
+            {id:'signals', label:'📈 Signaux'},
+            {id:'history', label:'📋 Historique'}
+          ]; track tab.id) {
+            <button
+              role="tab"
+              [attr.id]="'tab-btn-' + tab.id"
+              [attr.aria-selected]="activeTab() === tab.id"
+              [attr.aria-controls]="'tab-panel-' + tab.id"
+              [class.active]="activeTab() === tab.id"
+              (click)="setTab($any(tab.id))">
+              {{ tab.label }}
+              @if (tab.id === 'history' && transactions.length) {
+                <span class="badge" aria-label="{{ transactions.length }} transactions">{{ transactions.length }}</span>
+              }
+            </button>
+          }
+          <button class="btn-refresh" (click)="loadOffers()" [disabled]="loading()"
+            aria-label="Rafraîchir les offres du marché">🔄</button>
         </div>
 
         <!-- Messages de retour -->
-        @if (error())   { <p class="msg-error"   role="alert"  aria-live="assertive">⚠️ {{ error() }}</p> }
-        @if (success()) { <p class="msg-success"  role="status" aria-live="polite">{{ success() }}</p> }
+        @if (error())   { <p class="msg-error"  role="alert"  aria-live="assertive">{{ error() }}</p> }
+        @if (success()) { <p class="msg-success" role="status" aria-live="polite">{{ success() }}</p> }
 
-        <!-- ── Panneau Acheter ── -->
+        <!-- ── Acheter ── -->
         @if (activeTab() === 'buy') {
           <div id="tab-panel-buy" role="tabpanel" aria-labelledby="tab-btn-buy" class="tab-panel">
             @if (loading()) {
-              <p class="loading">Chargement des offres…</p>
-            } @else if (otherOffers.length === 0) {
+              <p class="loading" aria-live="polite" aria-busy="true">Chargement des offres…</p>
+            } @else if (otherOffers().length === 0) {
               <p class="empty">Aucune offre disponible pour le moment.</p>
             } @else {
               <table>
-                <caption class="sr-only">Offres disponibles à l'achat</caption>
+                <caption class="sr-only">Offres disponibles à l'achat — {{ otherOffers().length }} offre(s)</caption>
                 <thead>
                   <tr>
                     <th scope="col">Ressource</th>
                     <th scope="col">Vendeur</th>
                     <th scope="col">Qté dispo</th>
-                    <th scope="col">Prix / unité</th>
+                    <th scope="col">Prix/u (OR)</th>
                     <th scope="col">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (offer of otherOffers; track offer.id) {
+                  @for (offer of otherOffers(); track offer.id) {
                     <tr [class.row-cheap]="offer.pricePerResource <= 5">
                       <td>{{ resourceIcon(offer.resourceType) }} {{ offer.resourceType }}</td>
                       <td>{{ offer.owner?.name ?? '—' }}</td>
@@ -74,16 +90,34 @@
                       <td>💰 {{ offer.pricePerResource }}</td>
                       <td class="td-action">
                         @if (buyingOfferId() === offer.id) {
-                          <label [for]="'qty-' + offer.id" class="sr-only">Quantité (max {{ offer.quantityIn }})</label>
-                          <input type="number" [id]="'qty-' + offer.id" class="qty-input"
-                            [(ngModel)]="buyQty" [name]="'qty-' + offer.id"
-                            min="1" [max]="offer.quantityIn" aria-label="Quantité à acheter"/>
-                          <button class="btn-confirm" (click)="confirmBuy()" [disabled]="loading()"
-                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unités de ' + offer.resourceType">✓</button>
+                          <label [for]="'qty-' + offer.id" class="sr-only">
+                            Quantité à acheter (1 à {{ offer.quantityIn }})
+                          </label>
+                          <input
+                            type="number"
+                            [id]="'qty-' + offer.id"
+                            class="qty-input"
+                            [(ngModel)]="buyQty"
+                            [name]="'qty-' + offer.id"
+                            min="1"
+                            [max]="offer.quantityIn"
+                            [attr.aria-label]="'Quantité à acheter, max ' + offer.quantityIn"
+                          />
+                          <button
+                            class="btn-confirm"
+                            (click)="confirmBuy()"
+                            [disabled]="loading() || buyQty < 1"
+                            [attr.aria-label]="'Confirmer l\'achat de ' + buyQty + ' unité(s) de ' + offer.resourceType + ' pour ' + (buyQty * offer.pricePerResource) + ' OR'">
+                            ✓ Confirmer
+                          </button>
                           <button class="btn-cancel" (click)="cancelBuy()" aria-label="Annuler l'achat">✕</button>
                         } @else {
-                          <button class="btn-buy" (click)="startBuy(offer)"
-                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' de ' + (offer.owner?.name ?? 'inconnu')">Acheter</button>
+                          <button
+                            class="btn-buy"
+                            (click)="startBuy(offer.id)"
+                            [attr.aria-label]="'Acheter ' + offer.resourceType + ' vendu par ' + (offer.owner?.name ?? 'inconnu') + ' à ' + offer.pricePerResource + ' OR/u'">
+                            Acheter
+                          </button>
                         }
                       </td>
                     </tr>
@@ -94,55 +128,83 @@
           </div>
         }
 
-        <!-- ── Panneau Vendre ── -->
+        <!-- ── Vendre ── -->
         @if (activeTab() === 'sell') {
           <div id="tab-panel-sell" role="tabpanel" aria-labelledby="tab-btn-sell" class="tab-panel">
 
-            @if (myOffer) {
+            @if (myOffer()) {
               <section class="my-offer" aria-labelledby="my-offer-title">
                 <h3 id="my-offer-title">Mon offre en cours</h3>
-                <p>{{ resourceIcon(myOffer.resourceType) }} <strong>{{ myOffer.resourceType }}</strong>
-                  — {{ myOffer.quantityIn }} unité(s) à 💰 {{ myOffer.pricePerResource }} / unité</p>
-                <button class="btn-delete" (click)="deleteMyOffer()" [disabled]="loading()"
-                  aria-label="Supprimer mon offre en cours">🗑️ Supprimer mon offre</button>
+                <p>
+                  {{ resourceIcon(myOffer()!.resourceType) }}
+                  <strong>{{ myOffer()!.resourceType }}</strong>
+                  — {{ myOffer()!.quantityIn }} unité(s) à 💰 {{ myOffer()!.pricePerResource }} OR/u
+                </p>
+                @if (isCooldownActive()) {
+                  <p class="cooldown-msg" role="status" aria-live="polite">
+                    ⏳ Modification disponible dans <strong>{{ cooldownRemaining() }}s</strong>
+                  </p>
+                }
+                <button
+                  class="btn-delete"
+                  (click)="deleteMyOffer()"
+                  [disabled]="loading() || isCooldownActive()"
+                  aria-label="Supprimer mon offre en cours">
+                  🗑️ Supprimer mon offre
+                </button>
               </section>
             }
 
             <section aria-labelledby="sell-form-title">
-              <h3 id="sell-form-title">{{ myOffer ? 'Modifier mon offre' : 'Publier une offre' }}</h3>
-              <p class="fields-required">Les champs marqués d'un <abbr title="obligatoire">*</abbr> sont obligatoires.</p>
+              <h3 id="sell-form-title">{{ myOffer() ? 'Modifier mon offre' : 'Publier une offre' }}</h3>
+              <p class="fields-required">
+                Les champs marqués d'un <abbr title="obligatoire">*</abbr> sont obligatoires.
+              </p>
 
-              <form (submit)="$event.preventDefault(); publishOffer()" class="sell-form">
+              <form (submit)="$event.preventDefault(); publishOffer()" class="sell-form" novalidate>
 
                 <div class="form-row">
                   <label for="sell-resource">Ressource *</label>
-                  <select id="sell-resource" name="sell-resource" [(ngModel)]="sellResource" required>
-                    @for (r of resources; track r) { <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option> }
+                  <select id="sell-resource" name="sell-resource" [(ngModel)]="sellResource"
+                    required aria-required="true"
+                    [disabled]="isCooldownActive()">
+                    @for (r of resources; track r) {
+                      <option [value]="r">{{ resourceIcon(r) }} {{ r }}</option>
+                    }
                   </select>
                 </div>
 
                 <div class="form-row">
                   <label for="sell-qty">Quantité à vendre *</label>
                   <input type="number" id="sell-qty" name="sell-qty" [(ngModel)]="sellQty"
-                    min="1" required aria-describedby="sell-qty-hint"/>
-                  <small id="sell-qty-hint">Le stock sera immédiatement débité.</small>
+                    min="1" required aria-required="true"
+                    aria-describedby="sell-qty-hint"
+                    [attr.aria-invalid]="sellQty < 1 ? 'true' : null"
+                    [disabled]="isCooldownActive()"/>
+                  <small id="sell-qty-hint">Le stock sera immédiatement débité lors de la publication.</small>
                 </div>
 
                 <div class="form-row">
                   <label for="sell-price">Prix par unité (OR) *</label>
-                  <input type="number" id="sell-price" name="sell-price" [(ngModel)]="sellPrice" min="1" required/>
+                  <input type="number" id="sell-price" name="sell-price" [(ngModel)]="sellPrice"
+                    min="1" required aria-required="true"
+                    [attr.aria-invalid]="sellPrice < 1 ? 'true' : null"
+                    [disabled]="isCooldownActive()"/>
                 </div>
 
-                <button type="submit" class="btn-publish" [disabled]="loading() || !sellQty || !sellPrice">
-                  {{ myOffer ? '✏️ Mettre à jour' : '📤 Publier' }}
+                <button
+                  type="submit"
+                  class="btn-publish"
+                  [disabled]="loading() || !sellQty || !sellPrice || isCooldownActive()"
+                  [attr.aria-label]="myOffer() ? 'Mettre à jour mon offre' : 'Publier une nouvelle offre'">
+                  {{ myOffer() ? '✏️ Mettre à jour' : '📤 Publier' }}
                 </button>
               </form>
             </section>
-
           </div>
         }
 
-        <!-- ── Panneau Prix (graphique SVG) ── -->
+        <!-- ── Graphique ── -->
         @if (activeTab() === 'chart') {
           <div id="tab-panel-chart" role="tabpanel" aria-labelledby="tab-btn-chart" class="tab-panel">
             @if (priceHistory.isPolling()) {
@@ -152,9 +214,7 @@
               <figure class="chart-figure">
                 <figcaption class="sr-only">Évolution du prix moyen BOISIUM et FERONIUM. Seuil bot : 5 OR/u.</figcaption>
                 <svg [attr.viewBox]="'0 0 ' + cd.CW + ' ' + cd.CH" class="price-chart"
-                     role="img" aria-label="Courbe des prix BOISIUM et FERONIUM">
-
-                  <!-- Lignes de grille horizontales + labels Y -->
+                     role="img" aria-label="Courbe des prix BOISIUM et FERONIUM au fil du temps">
                   @for (tick of cd.yTicks; track tick.v) {
                     <line [attr.x1]="cd.PAD.l" [attr.y1]="tick.y"
                           [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="tick.y"
@@ -163,15 +223,11 @@
                           text-anchor="end" dominant-baseline="middle"
                           fill="#666" font-size="9">{{ tick.v }}</text>
                   }
-
-                  <!-- Seuil bot à 5 OR (ligne rouge pointillée) -->
                   <line [attr.x1]="cd.PAD.l" [attr.y1]="cd.thresholdY"
                         [attr.x2]="cd.CW - cd.PAD.r" [attr.y2]="cd.thresholdY"
                         stroke="#e94560" stroke-dasharray="4,3" stroke-width="1.5" opacity="0.8"/>
                   <text [attr.x]="cd.CW - cd.PAD.r + 2" [attr.y]="cd.thresholdY"
                         fill="#e94560" font-size="8" dominant-baseline="middle">5</text>
-
-                  <!-- Courbes de prix -->
                   @for (line of cd.lines; track line.key) {
                     @if (line.hasData) {
                       <polyline [attr.points]="line.points" [attr.stroke]="line.color"
@@ -179,16 +235,12 @@
                                 stroke-linejoin="round" stroke-linecap="round"/>
                     }
                   }
-
-                  <!-- Labels axe X -->
                   @for (lbl of cd.xLabels; track lbl.label) {
                     <text [attr.x]="lbl.x" [attr.y]="cd.CH - 4"
                           text-anchor="middle" fill="#555" font-size="8">{{ lbl.label }}</text>
                   }
                 </svg>
               </figure>
-
-              <!-- Légende -->
               <div class="chart-legend" role="list" aria-label="Légende du graphique">
                 @for (line of cd.lines; track line.key) {
                   <span class="legend-item" role="listitem">
@@ -204,27 +256,61 @@
             } @else {
               <p class="empty">
                 En attente de données…
-                <small>La Marketplace doit être découverte. Les données apparaissent après le premier poll (10 s).</small>
+                <small>Les données apparaissent après le premier poll (10 s).</small>
               </p>
             }
           </div>
         }
 
-        <!-- ── Panneau Historique ── -->
+        <!-- ── Signaux de spéculation ── -->
+        @if (activeTab() === 'signals') {
+          <div id="tab-panel-signals" role="tabpanel" aria-labelledby="tab-btn-signals" class="tab-panel">
+            <h3>Signaux de spéculation (MA5 / MA20)</h3>
+            <ul class="signals-list" aria-label="Signaux de trading par ressource">
+              @for (sig of speculSignals; track sig) {
+                <li>{{ sig }}</li>
+              }
+            </ul>
+            <p class="signals-note">
+              <small>Golden cross = MA5 &gt; MA20 × 1.20 → signal de vente/hausse.<br>
+              Death cross = MA5 &lt; MA20 × 0.90 → signal d'achat.</small>
+            </p>
+
+            <!-- Undo / Redo -->
+            <section class="undo-redo" aria-labelledby="undo-redo-title">
+              <h4 id="undo-redo-title">Historique des états UI</h4>
+              <div class="undo-redo-btns">
+                <button (click)="undoAction()" [disabled]="canUndoSig() === 0"
+                  [attr.aria-label]="'Annuler — ' + canUndoSig() + ' état(s) disponible(s)'">
+                  ↩ Annuler ({{ canUndoSig() }})
+                </button>
+                <button (click)="redoAction()" [disabled]="canRedoSig() === 0"
+                  [attr.aria-label]="'Rétablir — ' + canRedoSig() + ' état(s) disponible(s)'">
+                  ↪ Rétablir ({{ canRedoSig() }})
+                </button>
+              </div>
+              <p class="undo-note">
+                <small>L'annulation modifie l'état local de l'UI uniquement — aucune action serveur n'est annulée.</small>
+              </p>
+            </section>
+          </div>
+        }
+
+        <!-- ── Historique ── -->
         @if (activeTab() === 'history') {
           <div id="tab-panel-history" role="tabpanel" aria-labelledby="tab-btn-history" class="tab-panel">
             @if (transactions.length === 0) {
-              <p class="empty">Aucune transaction enregistrée pour cette session.</p>
+              <p class="empty">Aucune transaction enregistrée.</p>
             } @else {
               <table>
-                <caption class="sr-only">Historique des transactions marketplace</caption>
+                <caption class="sr-only">Historique des transactions marketplace — {{ transactions.length }} entrée(s)</caption>
                 <thead>
                   <tr>
                     <th scope="col">Heure</th>
                     <th scope="col">Ressource</th>
                     <th scope="col">Qté</th>
-                    <th scope="col">Prix/u</th>
-                    <th scope="col">Total</th>
+                    <th scope="col">Prix/u (OR)</th>
+                    <th scope="col">Total (OR)</th>
                     <th scope="col">Source</th>
                   </tr>
                 </thead>
@@ -234,10 +320,12 @@
                       <td>{{ fmtTime(tx.timestamp) }}</td>
                       <td>{{ resourceIcon(tx.resourceType) }} {{ tx.resourceType }}</td>
                       <td>{{ tx.quantity }}</td>
-                      <td>💰 {{ tx.pricePerUnit }}</td>
-                      <td>💰 {{ tx.totalCost }}</td>
-                      <td [attr.aria-label]="tx.source === 'bot' ? 'Bot automatique' : 'Achat manuel'">
-                        {{ tx.source === 'bot' ? '🤖' : '👤' }}
+                      <td>{{ tx.pricePerUnit }}</td>
+                      <td>{{ tx.totalCost }}</td>
+                      <td>
+                        <span [attr.aria-label]="tx.source === 'bot' ? 'Achat automatique par le bot' : 'Achat manuel'">
+                          {{ tx.source === 'bot' ? '🤖 Bot' : '👤 Manuel' }}
+                        </span>
                       </td>
                     </tr>
                   }

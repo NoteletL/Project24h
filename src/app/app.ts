@@ -1,5 +1,6 @@
 import {Component, inject, OnInit, viewChild, ViewChild} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Store } from '@ngrx/store';
 import { GameMapComponent } from './components/game-map/game-map';
 import { ControlsComponent } from './components/controls/controls';
 import { LogPanelComponent } from './components/log-panel/log-panel';
@@ -9,6 +10,10 @@ import { GameStateService } from './services/game-state.service';
 import { MapService } from './services/map.service';
 import { BotService } from './services/bot.service';
 import { PriceHistoryService } from './services/price-history.service';
+import { AppState } from './store/app.state';
+import { PlayerActions } from './store/player/player.actions';
+import { purgeLocalStorage } from './store/meta-reducers/local-storage.meta-reducer';
+import { IndexedDbService } from './services/indexeddb.service';
 
 @Component({
   selector: 'app-root',
@@ -23,6 +28,8 @@ export class App implements OnInit {
   readonly game = inject(GameStateService);
   private readonly bot          = inject(BotService);
   private readonly priceHistory = inject(PriceHistoryService);
+  private readonly store        = inject(Store<AppState>);
+  private readonly db           = inject(IndexedDbService);
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
@@ -44,6 +51,7 @@ export class App implements OnInit {
       this.game.token.set(saved);
       this.game.isAuthenticated.set(true);
       this.game.log('Token restauré depuis le stockage local.', 'info');
+      this.store.dispatch(PlayerActions.loadPlayer());   // ← sync NgRx store
       await Promise.allSettled([this.refreshAll(), this.loadMap()]);
     }
   }
@@ -70,6 +78,7 @@ export class App implements OnInit {
       this.game.token.set(res.codingGameId!);
       this.game.isAuthenticated.set(true);
       this.game.log(`Inscription réussie ! Équipe : ${res.name}`, 'action');
+      this.store.dispatch(PlayerActions.loadPlayer());
       await Promise.allSettled([this.refreshAll(), this.loadMap()]);
     } catch (e: any) {
       this.game.log(`Erreur inscription: ${e.message}`, 'error');
@@ -83,10 +92,12 @@ export class App implements OnInit {
     this.game.token.set(API_CONFIG.TOKEN);
     this.game.isAuthenticated.set(true);
     this.game.log('Connecté.', 'action');
+    this.store.dispatch(PlayerActions.loadPlayer());
     await Promise.allSettled([this.refreshAll(), this.loadMap()]);
   }
 
   logout() {
+    // ⚠️  Le token ne doit JAMAIS aller dans le store NgRx persisté
     localStorage.removeItem('3026_token');
     API_CONFIG.TOKEN = '';
     this.game.token.set('');
@@ -94,6 +105,15 @@ export class App implements OnInit {
     this.game.log('Déconnecté.', 'info');
     this.bot.stop();
     this.priceHistory.stop();
+  }
+
+  /** Réinitialise l'appareil : purge localStorage (slices NgRx) + IndexedDB */
+  async resetDevice(): Promise<void> {
+    this.logout();
+    purgeLocalStorage();
+    await this.db.purgeAll();
+    this.store.dispatch(PlayerActions.reset());
+    this.game.log('🗑️ Appareil réinitialisé — toutes les données locales effacées.', 'info');
   }
 
   // --- Actions ---

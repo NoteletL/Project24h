@@ -43,17 +43,41 @@
       (click)="bot.toggle()"
       [attr.aria-pressed]="bot.isRunning()"
       [title]="bot.isRunning() ? 'Arrêter le bot (P)' : 'Démarrer le bot d\'achat auto (P)'"
-      aria-label="Bot d'achat automatique BOISIUM/FERONIUM">
+      [attr.aria-label]="bot.isRunning() ? 'Bot de spéculation actif — cliquer pour arrêter' : 'Bot de spéculation inactif — cliquer pour démarrer'">
       {{ bot.isRunning() ? '🤖 Bot ON' : '🤖 Bot OFF' }}
     </button>
+
+    <!-- Profil de risque -->
+    <div class="form-row bot-risk" role="group" aria-labelledby="risk-label">
+      <label id="risk-label" for="risk-profile">Profil de risque</label>
+      <select
+        id="risk-profile"
+        [ngModel]="bot.riskProfile()"
+        (ngModelChange)="bot.setRiskProfile($event)"
+        [disabled]="bot.isRunning()"
+        aria-describedby="risk-hint">
+        @for (p of riskProfiles; track p.value) {
+          <option [value]="p.value">{{ p.label }}</option>
+        }
+      </select>
+      <small id="risk-hint">Fraction du solde utilisée par cycle du bot.</small>
+    </div>
 
     <app-help-panel />
   </div>
 
-  <!-- Statut bot (annoncé aux lecteurs d'écran) -->
+  <!-- Statut bot + signaux (annoncés aux lecteurs d'écran) -->
   @if (bot.lastStatus()) {
     <div class="bot-status" aria-live="polite" aria-atomic="true">
       {{ bot.lastStatus() }}
     </div>
+  }
+
+  @if (bot.isRunning() && bot.signals().length) {
+    <ul class="bot-signals" aria-label="Signaux de spéculation en cours" aria-live="polite">
+      @for (sig of bot.signals(); track sig) {
+        <li>{{ sig }}</li>
+      }
+    </ul>
   }
 </div>

@@ -1,17 +1,25 @@
 import { Component, inject, output, HostListener } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { HelpPanelComponent } from '../help-panel/help-panel';
 import { BotService } from '../../services/bot.service';
+import { RiskProfile } from '../../services/speculation-strategy.service';
 
 @Component({
   selector: 'app-controls',
   standalone: true,
-  imports: [HelpPanelComponent],
+  imports: [HelpPanelComponent, FormsModule],
   templateUrl: './controls.html',
   styleUrl: './controls.css',
 })
 export class ControlsComponent {
   readonly action = output<string>();
   readonly bot    = inject(BotService);
+
+  readonly riskProfiles: { value: RiskProfile; label: string }[] = [
+    { value: 'conservative', label: '🛡️ Conservateur (30%)' },
+    { value: 'balanced',     label: '⚖️ Équilibré (50%)' },
+    { value: 'aggressive',   label: '⚔️ Agressif (80%)' },
+  ];
 
   private keyMap: Record<string, string> = {
     'ArrowUp': 'N', 'ArrowDown': 'S', 'ArrowLeft': 'W', 'ArrowRight': 'E',

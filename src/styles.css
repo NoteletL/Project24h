@@ -4,6 +4,42 @@
    Project 24h — Global Dark Game Theme
    ======================================== */
 
+/* ── Accessibilité — skip link & sr-only ── */
+.sr-only:not(:focus):not(:active) {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* Affichage du skip link lors du focus */
+a.sr-only:focus {
+  clip: auto;
+  clip-path: none;
+  height: auto;
+  overflow: visible;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  width: auto;
+  padding: 8px 16px;
+  background: var(--highlight, #e94560);
+  color: #fff;
+  font-weight: bold;
+  border-radius: 4px;
+  z-index: 9999;
+  text-decoration: none;
+}
+
+/* Indicateur de focus visible (ratio 3:1 minimum) */
+:focus-visible {
+  outline: 3px solid var(--green, #4ecca3);
+  outline-offset: 2px;
+}
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;
