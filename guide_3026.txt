@@ -1,0 +1,176 @@
+3026 - Le guide
+🚀 Bienvenue dans le jeu 3026 – Guide d’onboarding du joueur
+3026, 404 années après la frappe de l'astéroide “status-302” (qui n’a malheureusement pas pu
+être redirigé ^^), la terre s'est fragmentée en des milliers d'îles. Prenez la tête d'une de ces îles,
+explorez, échangez, commercez, et partez à la découverte de ce nouveau monde.
+Ce document présente simplement tout ce qu’une équipe doit savoir pour commencer à jouer à
+3026.
+🎯 1. Objectif du jeu
+Votre objectif est de cartographier ce nouvel état planétaire. Malheureusement cet astéroïde ne
+vous a laissé que quelques bouts de bois et un peu de ficelle que vous devrez assembler pour
+lancer l'aventure. Faites évoluer ce radeau de fortune grâce aux ressources collectées et
+échangées lors de votre périple. Pour réussir votre quête vous devrez coopérer avec les autres
+explorateurs car seule votre capacité à collaborer vous permettra de finir en héros.
+Objectifs :
+Découvrir un maximum d'îles et résoudre un maximum de quêtes
+Visualiser la carte du monde
+Visualiser les informations en temps réel
+🧩 2. Inscription de l’équipe
+Avant de jouer, votre équipe doit être inscrite, vous devez fournir votre adresse mail à l'équipe
+organisatrice avant de pouvoir commencer toute action.
+Un OAS Get-Started vous sera fourni une fois votre adresse mail communiqué. Après avoir finir
+le premier palier du jeu un nouvel OAS complet vous sera transmis. Venez nous le réclamer si
+vous pensez avoir finaliser la première étape.
+Pour continuer votre inscription vous devrez dans un premier temps utiliser l’API
+/signupcodes et ensuite l’API /player/register afin de finaliser votre inscription et
+démarrer le jeu 3026.
+La base url des API disponibles est la suivante :
+🔑 3. Authentification
+A l’issue du processus d’inscription un token vous sera fourni en retour et devra être utilisé pour
+vous authentifier auprès des toutes les API du jeu. Conservez-le précieusement et ne le
+partagez sous aucun prétexte.
+⛵ 4. Concepts importants
+🗺️ La carte
+Dans 3026, vous démarrez sur une toute petite île qui vous appartient à vous uniquement. La
+carte est constituée de centaines d'îles à découvrir.
+Chaque case de la carte est une cellule qui peut être de 2 types :
+SEA : Océan
+SAND : Plage qui représente une partie d’une île
+🪵 Les ressources
+Le jeu comporte 4 ressources principales :
+Le nom de votre équipe ne doit comporter que des caractères alphanumériques (sans
+accents). Seul les espaces sont autorisés pour les caractères spéciaux.
+http://ec2-35-180-187-43.eu-west3.compute.amazonaws.com:8443
+Vous pouvez allez sur toutes les cellules qu’elles soient de type SEA ou SAND sans
+contrainte de déplacement
+BOISIUM Ressource primaire
+FERONIUM Ressource primaire
+CHARBONIUM Ressource primaire
+OR Monnaie du jeu
+Ressource Description
+Chaque civilisation a la capacité d’extraire une seule des 3 ressources primaires et ce, pendant
+toute la partie (déterminée automatiquement lors de votre inscription). Cela constitue votre
+ressource principale. Elle est collectée automatiquement toutes les 5 minutes.
+Une 4ème ressource, l’OR, sert de monnaie d'échange dans le jeu afin de procéder aux
+diverses transactions que vous découvrirez au fur et à mesure de votre avancement.
+🚢 Le bateau
+Pour explorer les mers, vous devez d'abord construire un bateau. Ce sera votre plus grand ami
+au sein de 3026. C’est avec lui que vous pourrez cartographier le monde et que vous pourrez
+augmenter votre productivité en découvrant de nouvelles îles, en réalisant des quêtes, en
+découvrant des trésors cachés ou alors tomber nez à nez avec le redoutable Kraken !
+Une fois votre radeau construit vous pourrez partir à l’aventure mais attention à bien respecter
+les règles suivantes :
+Un bateau a une capacité de mouvement maximal pour pouvoir avancer qui représente des
+points de mouvements disponibles (le nombre de cases)
+Un bateau a une visibilité de cases autour de lui (ce qui vous permet de cartographier une
+plus grande partie de la carte
+Si votre bateau est en pleine mer et qu’il n’a plus de points de mouvements disponibles, c’est
+la panne sèche !
+Votre bateau est alors immobilisé pendant un certain temps (dépendant du niveau de votre
+bateau) jusqu'à ce qu’il soit remorqué vers votre île de départ ! Attention à ne pas partir à
+l’aveuglette en mer sans savoir comment rentrer chez vous !
+Si vous souhaitez raccourcir le délai de remorquage il existe d’autres moyens pour repartir
+plus vite qui seront expliqués un peu plus tard mais tout cela aura un coût
+🔨 Améliorer son bateau
+Votre bateau n’est pas condamné à rester à l'état de radeau durant toute la partie,
+heureusement vous pourrez l’améawsliorer tout le long du jeu jusqu’au niveau 5 pour améliorer
+ses caractéristiques et explorer le monde de 3026 plus efficacement.
+Chaque équipe possède un entrepôt (storage) qui limite vos capacités de stockage pour
+chacune de vos 3 ressources (l’or est exclu). Pour avancer dans le jeu vous devrez
+augmenter votre entrepôt pour pouvoir stocker les quantités nécessaires. Si votre entrepôt
+est plein, toutes les ressources reçues seront définitivement perdues.
+Chaque amélioration a un coût en ressource et en or mais cela permet de se déplacer plus vite,
+plus loin et d’augmenter la portée de visibilité (les cellules visibles autours du bateau)
+🧭 Déplacer son bateau
+Au tout début votre bateau ne peut se déplacer qu’en suivant les 4 directions des points
+cardinaux et chaque déplacement d’une case coutera un point de déplacement.
+Pour recharger vos points de mouvement il suffit d’approcher votre bateau autour d’une de vos
+île découvertes (une île validée par une précédente expédition, pas l’expédition en cours).
+🏝️ Les îles
+Vous disposez d'une île de départ (home) et lorsque vous aurez construit votre radeau, il sera
+placé juste à côté de votre île.
+Dans 3026, aucune île ne vous appartient hormis votre première île, toutes les autres îles sont
+partagées avec tous les autres joueurs.
+⚠️ Pour valider la découverte d’une île, votre bateau doit apercevoir au moins une case d’une
+île et retourner accoster sur votre île de départ ou sur une île que vous avez déjà découverte
+avant votre expédition. Attention à éviter la panne sur la route du retour !
+Les îles ont un nom et un bonus de productivité, c’est le concept clé de 3026. En découvrant
+une nouvelle île, votre civilisation dispose maintenant d’un nouveau terrain d’extraction de votre
+ressource principale.
+Et oui, en 3026 les téléphones n’existent plus, votre seul moyen de pouvoir rapporter vos
+exploits en mer est de revenir à quai chez vous pour pouvoir raconter votre expédition et
+la mémoriser ! Sans cela, toute découverte sera perdue et vous devrez y retourner !
+Pour valider votre expédition, votre bateau doit être positionné sur une cellule de votre île
+et non aux alentours.
+Plus vous découvrirez d'îles plus vous augmenterez la quantité collectée de votre
+ressource principale. La quantité récoltée périodiquement dépend directement du nombre
+d’îles que vous avez découvert. C’est le seul et unique moyen d’augmenter la production
+de votre ressource principale.
+Découvrir une île a aussi un autre bénéfice si vous faites partie des premières à équipes à la
+découvrir. En arrivant les premiers vous découvrez des richesses inexploités dont vous pouvez
+tout de suite bénéficier: un bonus en OR directement crédité sur votre compte. Ce bonus
+diminue en fonction de votre classement de découverte de l'île, par conséquent le premier
+joueur à découvrir une île gagnera un bonus en OR plus conséquent, que le 2ème joueur, puis le
+2ème par rapport au 3ème et ainsi de suite.
+💸 Les taxes (amendes !)
+Dans 3026, vous pourrez de temps en temps être soumis au paiement d’une amende ou d’une
+taxe, dans deux cas précis :
+Avoir besoin d’un sauvetage ( RESCUE ), votre bateau est tombé en panne vous n’avez plus
+d'énergie pour rentrer sur l’une vos îles ou encore parce que vous avez fait face à une
+tempête qui a causé des dégâts irréversibles à votre embarcation. Dans ce cas, un
+remorqueur doit être envoyé pour venir vous récupérer et cela a un prix.
+Avoir tenté une action non autorisée ( CHEAT ). Attention à ne pas vouloir trop forcer, cela
+pourrait vous jouer des tours
+Vous pouvez à tout moment consulter vos taxes restantes à payer pour pouvoir les solder.
+⚠️ Les risques
+Certaines zones de la carte contiennent des risques :
+tempêtes
+pirates
+kraken
+récifs
+etc.
+À chaque déplacement dans une zone dangereuse, vous avez 20% de chances de subir un
+risque, alors réfléchissez bien avant de vous engagez dans cette zone, vous risquerez de devoir
+subir un remorquage et retourner à votre position de départ.
+Si vous êtes touché par un risque, vous êtes en panne :
+votre bateau est immobilisé,
+vous recevez une taxe de secours
+Découvrir des îles rapidement est un excellent moyen de gagner de l’OR facilement dans
+3026.
+si vous n’avez pas l’argent nécessaire pour payer le remorquage, il sera effectué gratuitement
+mais seulement après un certain délai laissant votre bateau à l’arrêt durant toute cette
+période.
+🏪 La MarketPlace
+La MarketPlace permet aux joueurs d’échanger des ressources entre eux, c’est le seul et unique
+moyen de vous procurer les deux ressources que vous ne produisez pas naturellement. Afin de
+pouvoir commencer à commercer avec les autres civilisations vous devez absoulement
+découvrir l'île qui abrite ce Marché Centrale. Une fois cette île découverte et validée, les API
+de commerces vous seront ouvertes.
+📤 Créer une offre (vendre une ressource)
+Pour mettre en vente votre ressource principal, vous devez créer une offre en précisant la
+quantité que vous souhaitez mettre en vente ainsi que le tarif choisie (prix à l’unité).
+Vous ne pouvez pas avoir plusieurs offres en même temps, mais vous pouvez une fois le délai
+dépassé modifier la quantité proposé ainsi que le tarif.
+📥 Acheter une offre (acheter une ressource)
+A l’inverse, vous pouvez acheter une offre (ou une partie) pour acquérir la ressource proposée si
+vous possédez l’argent nécessaire pour effectuer cette transaction.
+📝 Broker de message
+Dans 3026, la plupart des actions/événements effectués sont tracés et publiés dans un broker
+de message. Par exemple dès qu’une nouvelle offre est publiée, un événement sera émis vous
+permettant de réagir le plus vite possible pour sauter sur l’occasion (ou non ).
+Endpoint : b-a5095b9b-3c4d-4fe7-8df1-8031e8808618.mq.eu-west3.on.aws:5671
+Username : <nom_de_l'equipe> Attention, il faut remplacer tous les espaces par un
+underscore '_'
+Password : <id_equipe>
+Attention, afin d'éviter tout abus, une offre mis en ligne ne pourra plus être modifiée
+pendant un certains temps. De plus, à partir de la mise en ligne de votre offre, le solde de
+votre ressource sera directement débité de votre compte comme si la quantité avait été
+vendue.
+Queue : user.<id_equipe>
+🏁 C’est parti !
+Vous avez maintenant toutes les bases indispensables pour commencer à jouer à 3026,
+explorer le monde, découvrir des îles, commercer et progresser dans l’aventure.
+Toute l'équipe de la Digital Factory MMA Covea Le Mans reste disponible tout au long de ces
+24h pour vous accompagner et répondre à toutes vos interrogations
+La queue est propre à chaque joueur mais reçoit à la fois les messages publiques (envoyés
+à tous les joueurs) ainsi que les messages dédiés seulement à votre équipe.
