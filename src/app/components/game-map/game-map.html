@@ -1,0 +1,17 @@
+<div
+  class="map-container"
+  [style.grid-template-columns]="'repeat(' + cols() + ', var(--tile-size))'"
+  [style.grid-template-rows]="'repeat(' + rows() + ', var(--tile-size))'">
+  @for (row of grid(); track $index; let y = $index) {
+    @for (tile of row; track $index; let x = $index) {
+      <div
+        class="tile"
+        [class.tile-player]="isPlayer(x, y)"
+        [class]="'tile tile-' + (isPlayer(x, y) ? 'player' : tile.type)"
+        [title]="(isPlayer(x, y) ? 'Joueur' : tile.type) + ' (' + x + ', ' + y + ')'">
+        {{ isPlayer(x, y) ? getPlayerIcon() : getTileIcon(tile.type) }}
+      </div>
+    }
+  }
+</div>
+

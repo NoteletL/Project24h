@@ -1,0 +1,8 @@
+<div class="log-container">
+  @for (entry of logs(); track $index) {
+    <p class="log-entry" [class]="'log-entry' + (entry.type ? ' log-' + entry.type : '')">
+      [T{{ entry.turn }}] {{ entry.message }}
+    </p>
+  }
+</div>
+

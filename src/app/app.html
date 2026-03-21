@@ -1,0 +1,37 @@
+<!-- Header -->
+<header class="header">
+  <h1>🗺️ Project 24h</h1>
+  <div class="status-bar">
+    <span class="status-pos">Position: ({{ game.playerPos().x }}, {{ game.playerPos().y }})</span>
+    <span class="status-hp">❤️ HP: {{ game.hp() }}/{{ game.maxHp() }}</span>
+    <span class="status-gold">💰 Or: {{ game.gold() }}</span>
+    <span class="status-turn">🔄 Tour: {{ game.turn() }}</span>
+  </div>
+</header>
+
+<!-- Map Area -->
+<section class="map-section">
+  <app-game-map />
+</section>
+
+<!-- Log Panel -->
+<section class="info-panel">
+  <app-log-panel />
+</section>
+
+<!-- Controls -->
+<app-controls (action)="onAction($event)" />
+
+<!-- Modal -->
+@if (game.modalVisible()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <button class="btn-modal-close" (click)="closeModal()">✕</button>
+      <h2 class="modal-title">{{ game.modalTitle() }}</h2>
+      <div class="modal-body" [innerHTML]="game.modalBody()"></div>
+    </div>
+  </div>
+}
+
+
+

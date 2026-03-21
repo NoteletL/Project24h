@@ -1,0 +1,39 @@
+<div class="control-panel">
+  <!-- Navigation D-Pad -->
+  <div class="nav-controls">
+    <div class="nav-row">
+      <button class="btn-nav" (click)="onAction('up')" title="Haut (↑ / Z)">⬆️</button>
+    </div>
+    <div class="nav-row">
+      <button class="btn-nav" (click)="onAction('left')" title="Gauche (← / Q)">⬅️</button>
+      <button class="btn-nav btn-center" (click)="onAction('wait')" title="Attendre (Space)">⏳</button>
+      <button class="btn-nav" (click)="onAction('right')" title="Droite (→ / D)">➡️</button>
+    </div>
+    <div class="nav-row">
+      <button class="btn-nav" (click)="onAction('down')" title="Bas (↓ / S)">⬇️</button>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-controls">
+    <button class="btn-action btn-interact" (click)="onAction('interact')" title="Interagir (E)">
+      🤝 Interagir
+    </button>
+    <button class="btn-action btn-upgrade" (click)="onAction('upgrade')" title="Améliorer (U)">
+      ⬆️ Améliorer
+    </button>
+    <button class="btn-action btn-inventory" (click)="onAction('inventory')" title="Inventaire (I)">
+      🎒 Inventaire
+    </button>
+    <button class="btn-action btn-status" (click)="onAction('status')" title="Statut (P)">
+      📊 Statut
+    </button>
+    <button class="btn-action btn-scan" (click)="onAction('scan')" title="Scanner (R)">
+      🔍 Scanner
+    </button>
+    <button class="btn-action btn-attack" (click)="onAction('attack')" title="Attaquer (A)">
+      ⚔️ Attaquer
+    </button>
+  </div>
+</div>
+

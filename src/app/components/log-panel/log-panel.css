@@ -1,0 +1,21 @@
+.log-container {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.log-entry {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-left: 2px solid var(--accent);
+  margin: 0;
+}
+
+.log-entry.log-action  { border-color: var(--green); color: var(--green); }
+.log-entry.log-error   { border-color: var(--red); color: var(--red); }
+.log-entry.log-info    { border-color: var(--blue); color: var(--blue); }
+.log-entry.log-warning { border-color: var(--gold); color: var(--gold); }
+

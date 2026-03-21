@@ -1,0 +1,140 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px;
+  gap: 8px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glow);
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 1.2rem;
+  color: var(--green);
+  text-shadow: 0 0 10px rgba(78, 204, 163, 0.5);
+  margin: 0;
+}
+
+.status-bar {
+  display: flex;
+  gap: 20px;
+  font-size: 0.85rem;
+}
+
+.status-bar span {
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-hp   { color: var(--red); }
+.status-gold { color: var(--gold); }
+.status-pos  { color: var(--blue); }
+.status-turn { color: var(--green); }
+
+/* Map Section */
+.map-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-glow);
+  overflow: hidden;
+  min-height: 0;
+  padding: 8px;
+}
+
+/* Info / Log Panel */
+.info-panel {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-glow);
+  padding: 8px 12px;
+  height: 80px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border: 2px solid var(--green);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 350px;
+  max-width: 500px;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 0 40px rgba(78, 204, 163, 0.2);
+}
+
+.modal-title {
+  color: var(--green);
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+}
+
+.modal-body {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.btn-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.btn-modal-close:hover {
+  color: var(--red);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .status-bar {
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+

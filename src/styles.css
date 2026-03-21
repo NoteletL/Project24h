@@ -1,0 +1,43 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* ========================================
+   Project 24h — Global Dark Game Theme
+   ======================================== */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --accent: #0f3460;
+  --accent-light: #533483;
+  --highlight: #e94560;
+  --text-primary: #eee;
+  --text-secondary: #aaa;
+  --text-muted: #666;
+  --gold: #f0c040;
+  --green: #4ecca3;
+  --blue: #38b6ff;
+  --red: #e94560;
+  --tile-size: 48px;
+  --border-glow: rgba(78, 204, 163, 0.3);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', 'Consolas', monospace;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-light); }
