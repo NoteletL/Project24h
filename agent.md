@@ -6,7 +6,8 @@ Interface de contrôle et de visualisation communiquant avec les APIs REST du je
 
 ## 🌐 API
 - **Base URL** : `http://ec2-35-180-187-43.eu-west3.compute.amazonaws.com:8443`
-- **Auth** : Token Bearer retourné par `/player/register`
+- **Auth** : Header `codinggame-id` (tout en minuscules, exigé par le serveur)
+- **Proxy** : Le front envoie `x-game-token` vers `/api/*`, le proxy Node.js (`proxy.conf.js`) le transforme en `codinggame-id` pour contourner la capitalisation du navigateur
 
 ### Endpoints connus (OAS Get-Started)
 | Méthode | Endpoint | Description |

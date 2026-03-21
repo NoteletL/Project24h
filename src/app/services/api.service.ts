@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 export const API_CONFIG = {
-  BASE_URL: 'http://ec2-35-180-187-43.eu-west3.compute.amazonaws.com:8443',
+  BASE_URL: 'http://ec2-15-237-116-133.eu-west-3.compute.amazonaws.com:8443',
   TOKEN: '',
 };
 
@@ -94,151 +94,107 @@ export interface RegisterResponse {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
 
-  private get headers(): Record<string, string> {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (API_CONFIG.TOKEN) {
-      h['Authorization'] = `Bearer ${API_CONFIG.TOKEN}`;
-    }
-    return h;
+  private request<T>(method: string, path: string, body?: any): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, `${API_CONFIG.BASE_URL}${path}`);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      if (API_CONFIG.TOKEN) {
+        xhr.setRequestHeader('codinggame-id', API_CONFIG.TOKEN);
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)); }
+          catch { resolve(xhr.responseText as any); }
+        } else {
+          reject(new Error(`${xhr.status} ${xhr.responseText}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(body ? JSON.stringify(body) : null);
+    });
   }
+
+  private get<T>(path: string) { return this.request<T>('GET', path); }
+  private post<T>(path: string, body: any = {}) { return this.request<T>('POST', path, body); }
 
   // --- Auth ---
   async getSignupCodes(): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/signupcodes`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Signup codes: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.get(`/signupcodes`);
   }
 
   async register(payload: RegisterPayload): Promise<RegisterResponse> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/player/register`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(`Register: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/player/register`, payload);
   }
 
   // --- Player ---
   async getPlayer(): Promise<PlayerInfo> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/player`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Player: ${res.status}`);
-    return res.json();
+    return this.get(`/player/details`);
   }
 
   // --- Map ---
   async getMap(): Promise<Cell[]> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/map`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Map: ${res.status}`);
-    return res.json();
+    return this.get(`/map/details`);
   }
 
   // --- Ship ---
   async getShip(): Promise<Ship> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/ship`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Ship: ${res.status}`);
-    return res.json();
+    return this.get(`/ship`);
   }
 
   async buildShip(): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/build`, {
-      method: 'POST', headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`Build ship: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/ship/build`);
   }
 
   async moveShip(direction: 'N' | 'S' | 'E' | 'W'): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/move`, {
-      method: 'POST', headers: this.headers,
-      body: JSON.stringify({ direction }),
-    });
-    if (!res.ok) throw new Error(`Move: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/ship/move`, { direction });
   }
 
   async upgradeShip(): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/upgrade`, {
-      method: 'POST', headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`Upgrade ship: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/ship/upgrade`);
   }
 
   async rescue(): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/rescue`, {
-      method: 'POST', headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`Rescue: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/rescue`);
   }
 
   // --- Resources ---
   async getResources(): Promise<Resources> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/resources`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Resources: ${res.status}`);
-    return res.json();
+    return this.get(`/resources`);
   }
 
   async getStorage(): Promise<StorageInfo> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/storage`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Storage: ${res.status}`);
-    return res.json();
+    return this.get(`/storage`);
   }
 
   async upgradeStorage(): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/storage/upgrade`, {
-      method: 'POST', headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`Upgrade storage: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/storage/upgrade`);
   }
 
   // --- Islands ---
   async getIslands(): Promise<Island[]> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/islands`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Islands: ${res.status}`);
-    return res.json();
+    return this.get(`/islands`);
   }
 
   // --- Marketplace ---
   async getMarketOffers(): Promise<MarketOffer[]> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/offers`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Marketplace: ${res.status}`);
-    return res.json();
+    return this.get(`/marketplace/offers`);
   }
 
   async createOffer(resource: string, quantity: number, unitPrice: number): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/offer`, {
-      method: 'POST', headers: this.headers,
-      body: JSON.stringify({ resource, quantity, unitPrice }),
-    });
-    if (!res.ok) throw new Error(`Create offer: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/marketplace/offer`, { resource, quantity, unitPrice });
   }
 
   async buyOffer(offerId: string, quantity: number): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/buy`, {
-      method: 'POST', headers: this.headers,
-      body: JSON.stringify({ offerId, quantity }),
-    });
-    if (!res.ok) throw new Error(`Buy offer: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/marketplace/buy`, { offerId, quantity });
   }
 
   // --- Taxes ---
   async getTaxes(): Promise<Tax[]> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/taxes`, { headers: this.headers });
-    if (!res.ok) throw new Error(`Taxes: ${res.status}`);
-    return res.json();
+    return this.get(`/taxes`);
   }
 
   async payTax(taxId: string): Promise<any> {
-    const res = await fetch(`${API_CONFIG.BASE_URL}/taxes/pay`, {
-      method: 'POST', headers: this.headers,
-      body: JSON.stringify({ taxId }),
-    });
-    if (!res.ok) throw new Error(`Pay tax: ${res.status} ${await res.text()}`);
-    return res.json();
+    return this.post(`/taxes/pay`, { taxId });
   }
 }
