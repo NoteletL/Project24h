@@ -1,5 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, effect, signal } from '@angular/core';
 import { Cell, Ship, Resource, PlayerDetails, DiscoveredIsland } from './api.service';
+
+const STORAGE_KEY = '3026_known_cells';
 
 export interface LogEntry {
   message: string;
@@ -16,8 +18,37 @@ export class GameStateService {
   // Player
   readonly playerDetails = signal<PlayerDetails | null>(null);
 
-  // Map — cellules découvertes (accumulées)
-  readonly knownCells = signal<Map<string, Cell>>(new Map());
+  // Map — cellules découvertes (accumulées, persistées dans localStorage)
+  readonly knownCells = signal<Map<string, Cell>>(this.loadCellsFromStorage());
+
+  // ...existing code...
+
+  constructor() {
+    // Persiste automatiquement les cellules à chaque changement
+    effect(() => {
+      const entries = Array.from(this.knownCells().entries());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    });
+  }
+
+  /** Charge les cellules depuis localStorage (appelé à l'initialisation) */
+  private loadCellsFromStorage(): Map<string, Cell> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const entries: [string, Cell][] = JSON.parse(raw);
+        return new Map(entries);
+      }
+    } catch {
+      // Données corrompues : on repart d'une map vide
+    }
+    return new Map();
+  }
+
+  /** Efface les cellules découvertes (mémoire + localStorage) */
+  clearCells() {
+    this.knownCells.set(new Map());
+  }
 
   // Ship
   readonly ship = signal<Ship | null>(null);

@@ -22,6 +22,8 @@ export interface Cell {
   ships?: any[];
   visibilityState?: any[];
   positionHistory?: any[];
+  risk?: boolean;
+  islandId?: string;
 }
 
 export interface ShipLevel {
