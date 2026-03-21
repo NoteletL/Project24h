@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core';
+import { Cell } from '../models/map.model';
 
 export const API_CONFIG = {
   BASE_URL: 'http://ec2-15-237-116-133.eu-west-3.compute.amazonaws.com:8443',
   TOKEN: '',
 };
 
-// --- Interfaces basées sur l'OAS ---
+// ─── Types OAS ───────────────────────────────────────────────────────────────
 
-export type CellType = 'SEA' | 'SAND' | 'ROCKS';
-export type CellStateEnum = 'VISITED' | 'SEEN' | 'KNOWN';
 export type Direction = 'N' | 'S' | 'E' | 'W' | 'NE' | 'NW' | 'SE' | 'SW';
 export type ResourceType = 'BOISIUM' | 'FERONIUM' | 'CHARBONIUM';
 export type IslandState = 'KNOWN' | 'DISCOVERED';
@@ -16,18 +15,7 @@ export type TaxeType = 'RESCUE' | 'CHEAT';
 export type TaxeState = 'DUE' | 'PAID';
 export type TheftChance = 'FAIBLE' | 'MOYENNE' | 'FORTE';
 
-export interface Cell {
-  id: string;
-  x: number;
-  y: number;
-  type: CellType;
-  zone: number;
-  ships?: any[];
-  visibilityState?: any[];
-  positionHistory?: any[];
-  risk?: boolean;
-  islandId?: string;
-}
+export type PriceResources = Record<string, number>;
 
 export interface ShipLevel {
   id: number;
@@ -35,10 +23,6 @@ export interface ShipLevel {
   visibilityRange: number;
   maxMovement: number;
   speed: number;
-}
-
-export interface PriceResources {
-  [key: string]: any;
 }
 
 export interface Ship {
@@ -76,31 +60,17 @@ export interface PlayerDetails {
   marketPlaceDiscovered: boolean;
 }
 
-// --- Requêtes / Réponses ---
-
-export interface SignupCodeRequest {
-  mail: string;
-}
-
 export interface SignupCodeResponse {
   signupCode: string;
 }
 
-export interface RegisterPlayerRequest {
+export interface Player {
   name: string;
-}
-
-export interface RegisterPlayerResponse {
-  name: string;
-  codingGameId: string;
+  codingGameId?: string;
 }
 
 export interface ShipBuildResponse {
   shipId: string;
-}
-
-export interface ShipMoveRequest {
-  direction: Direction;
 }
 
 export interface ShipMoveResponse {
@@ -165,10 +135,18 @@ export interface TheftRequest {
   moneySpent: number;
 }
 
+// ─── Service ─────────────────────────────────────────────────────────────────
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
 
-  private request<T>(method: string, path: string, body?: any, extraHeaders?: Record<string, string>): Promise<T> {
+  /** XHR helper — préserve la casse exacte des headers (le navigateur capitalise fetch/HttpClient) */
+  private request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    extraHeaders?: Record<string, string>
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(method, `${API_CONFIG.BASE_URL}${path}`);
@@ -184,51 +162,53 @@ export class ApiService {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try { resolve(JSON.parse(xhr.responseText)); }
-          catch { resolve(xhr.responseText as any); }
+          catch { resolve(xhr.responseText as T); }
         } else {
-          let errMsg = `${xhr.status}`;
+          let msg = `${xhr.status}`;
           try {
             const err: ApiError = JSON.parse(xhr.responseText);
-            errMsg = `${err.codeError}: ${err.message}`;
-          } catch { errMsg = `${xhr.status} ${xhr.responseText}`; }
-          reject(new Error(errMsg));
+            msg = `${err.codeError}: ${err.message}`;
+          } catch { msg = `${xhr.status} ${xhr.responseText}`; }
+          reject(new Error(msg));
         }
       };
       xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(body ? JSON.stringify(body) : null);
+      xhr.send(body !== undefined ? JSON.stringify(body) : null);
     });
   }
 
-  // --- Registration ---
+  // ── Inscription ────────────────────────────────────────────────────────────
 
-  /** POST /signupcodes — Obtenir un code d'inscription (envoyer l'email) */
-  async getSignupCode(mail: string): Promise<SignupCodeResponse> {
+  /** POST /signupcodes — Envoie le mail et reçoit le code d'inscription */
+  getSignupCode(mail: string): Promise<SignupCodeResponse> {
     return this.request<SignupCodeResponse>('POST', '/signupcodes', { mail });
   }
 
-  /** POST /players/register — Créer son équipe avec le signupcode en header */
-  async registerPlayer(name: string, signupCode: string): Promise<RegisterPlayerResponse> {
-    return this.request<RegisterPlayerResponse>('POST', '/players/register', { name }, {
-      'codinggame-signupcode': signupCode,
-    });
+  /** POST /players/register — Crée l'équipe ; signupCode passé en header */
+  registerPlayer(name: string, signupCode: string): Promise<Player> {
+    return this.request<Player>(
+      'POST', '/players/register',
+      { name },
+      { 'codinggame-signupcode': signupCode }
+    );
   }
 
-  // --- Player ---
+  // ── Joueur ─────────────────────────────────────────────────────────────────
 
-  /** GET /players/details — Détails complets du joueur (ressources, îles, argent…) */
-  async getPlayerDetails(): Promise<PlayerDetails> {
+  /** GET /players/details — Solde, ressources, îles découvertes… */
+  getPlayerDetails(): Promise<PlayerDetails> {
     return this.request<PlayerDetails>('GET', '/players/details');
   }
 
-  /** GET /resources — État des stocks de ressources actuels */
-  async getResources(): Promise<Resource[]> {
+  /** GET /resources — Stocks de ressources actuels */
+  getResources(): Promise<Resource[]> {
     return this.request<Resource[]>('GET', '/resources');
   }
 
-  // --- Ship ---
+  // ── Bateau ─────────────────────────────────────────────────────────────────
 
-  /** POST /ship/build — Construire le bateau (une seule fois) */
-  async buildShip(): Promise<ShipBuildResponse> {
+  /** POST /ship/build — Construit le bateau (une seule fois) */
+  buildShip(): Promise<ShipBuildResponse> {
     return this.request<ShipBuildResponse>('POST', '/ship/build');
   }
 
@@ -240,8 +220,8 @@ export class ApiService {
     return this.request<Ship>('GET', '/ship/next-level');
   }
 
-  /** POST /ship/move — Déplacer le bateau (8 directions possibles) */
-  async moveShip(direction: Direction): Promise<ShipMoveResponse> {
+  /** POST /ship/move — Déplace le bateau (8 directions), retourne cellules découvertes */
+  moveShip(direction: Direction): Promise<ShipMoveResponse> {
     return this.request<ShipMoveResponse>('POST', '/ship/move', { direction });
   }
 

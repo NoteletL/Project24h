@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, viewChild } from '@angular/core';
+import {Component, inject, OnInit, viewChild, ViewChild} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameMapComponent } from './components/game-map/game-map';
 import { ControlsComponent } from './components/controls/controls';
@@ -6,6 +6,7 @@ import { LogPanelComponent } from './components/log-panel/log-panel';
 import { MarketplaceComponent } from './components/marketplace/marketplace';
 import { ApiService, API_CONFIG, Direction, Ship } from './services/api.service';
 import { GameStateService } from './services/game-state.service';
+import { MapService } from './services/map.service';
 import { BotService } from './services/bot.service';
 import { PriceHistoryService } from './services/price-history.service';
 
@@ -18,12 +19,15 @@ import { PriceHistoryService } from './services/price-history.service';
 })
 export class App implements OnInit {
   private api = inject(ApiService);
+  private mapService = inject(MapService);
   readonly game = inject(GameStateService);
   private readonly bot          = inject(BotService);
   private readonly priceHistory = inject(PriceHistoryService);
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
+
+  @ViewChild(GameMapComponent) gameMap?: GameMapComponent;
 
   // Champs inscription
   mailInput = '';
@@ -40,7 +44,7 @@ export class App implements OnInit {
       this.game.token.set(saved);
       this.game.isAuthenticated.set(true);
       this.game.log('Token restauré depuis le stockage local.', 'info');
-      await this.refreshAll();
+      await Promise.allSettled([this.refreshAll(), this.loadMap()]);
     }
   }
 
@@ -51,7 +55,7 @@ export class App implements OnInit {
     try {
       const res = await this.api.getSignupCode(this.mailInput.trim());
       this.signupCode = res.signupCode;
-      this.game.log(`Code reçu ! Collez-le dans le champ "Code d'inscription".`, 'info');
+      this.game.log('Code reçu ! Renseignez-le dans le champ ci-dessous.', 'info');
     } catch (e: any) {
       this.game.log(`Erreur signup code: ${e.message}`, 'error');
     }
@@ -61,12 +65,12 @@ export class App implements OnInit {
     if (!this.teamName.trim() || !this.signupCode.trim()) return;
     try {
       const res = await this.api.registerPlayer(this.teamName.trim(), this.signupCode.trim());
-      API_CONFIG.TOKEN = res.codingGameId;
-      localStorage.setItem('3026_token', res.codingGameId);
-      this.game.token.set(res.codingGameId);
+      API_CONFIG.TOKEN = res.codingGameId!;
+      localStorage.setItem('3026_token', res.codingGameId!);
+      this.game.token.set(res.codingGameId!);
       this.game.isAuthenticated.set(true);
-      this.game.log(`Inscription réussie ! Équipe: ${res.name}`, 'action');
-      await this.refreshAll();
+      this.game.log(`Inscription réussie ! Équipe : ${res.name}`, 'action');
+      await Promise.allSettled([this.refreshAll(), this.loadMap()]);
     } catch (e: any) {
       this.game.log(`Erreur inscription: ${e.message}`, 'error');
     }
@@ -78,8 +82,8 @@ export class App implements OnInit {
     localStorage.setItem('3026_token', API_CONFIG.TOKEN);
     this.game.token.set(API_CONFIG.TOKEN);
     this.game.isAuthenticated.set(true);
-    this.game.log('Connecté avec le token.', 'action');
-    await this.refreshAll();
+    this.game.log('Connecté.', 'action');
+    await Promise.allSettled([this.refreshAll(), this.loadMap()]);
   }
 
   logout() {
@@ -114,21 +118,33 @@ export class App implements OnInit {
     try {
       this.game.log(`⛵ Déplacement ${dir}...`, 'action');
       const res = await this.api.moveShip(dir);
-      if (res.discoveredCells?.length) {
-        this.game.addCells(res.discoveredCells);
+
+      // 1. Mise à jour locale (knownCells)
+      const allCells = [...(res.discoveredCells ?? [])];
+      if (res.position) allCells.push(res.position);
+      if (allCells.length) this.game.addCells(allCells);
+
+      // 2. Mise à jour du signal ship (position + énergie)
+      const ship = this.game.ship();
+      if (ship && res.position) {
+        this.game.ship.set({ ...ship, availableMove: res.energy, currentPosition: res.position });
       }
+
+      this.game.log(`${dir} ✓ — Énergie: ${res.energy} | +${res.discoveredCells?.length ?? 0} cell(s)`, 'action');
+
+      // Recentrer la vue sur le bateau (sauf si l'utilisateur a panné manuellement)
+      this.gameMap?.recenterOnMove();
+
+      // 3. Persistance backend map (fire & forget — ne bloque pas l'UI)
       if (res.position) {
-        this.game.addCells([res.position]);
-        const ship = this.game.ship();
-        if (ship) {
-          // Mise à jour position + énergie, niveau conservé
-          this.game.ship.set({ ...ship, availableMove: res.energy, currentPosition: res.position });
-        } else {
-          // Bateau pas encore chargé → récupérer l'état complet
-          await this.refreshShip();
-        }
+        this.mapService.updateMap({
+          discoveredCells: res.discoveredCells ?? [],
+          position: res.position,
+        }).subscribe({
+          next: (mapState) => this.game.mapState.set(mapState),
+          error: (err) => this.game.log(`Map backend: ${err.message}`, 'warning'),
+        });
       }
-      this.game.log(`${dir} — Énergie restante: ${res.energy} | +${res.discoveredCells?.length ?? 0} cell(s)`, 'action');
     } catch (e: any) {
       this.game.log(`Erreur déplacement ${dir}: ${e.message}`, 'error');
     }
@@ -252,15 +268,12 @@ export class App implements OnInit {
   private async showIslands() {
     const details = this.game.playerDetails();
     if (!details) {
-      this.game.log('Récupération des données...', 'info');
-      await this.refreshPlayer();
+      this.game.log('Données joueur non chargées, rafraîchissez d\'abord.', 'warning');
+      return;
     }
-    const d = this.game.playerDetails();
-    if (!d) return;
-
-    const islands = d.discoveredIslands;
+    const islands = details.discoveredIslands;
     const html = islands.length === 0
-      ? '<p>Aucune île découverte.</p>'
+      ? '<p>Aucune île découverte pour l\'instant.</p>'
       : islands.map(di => `
           <div style="padding:6px 0;border-bottom:1px solid #333;">
             <strong>${di.islandState === 'KNOWN' ? '✅' : '👁️'} ${di.island.name}</strong>
@@ -270,7 +283,7 @@ export class App implements OnInit {
     this.game.showModal(`🏝️ Îles découvertes (${islands.length})`, html);
   }
 
-  // --- Refresh ---
+  // ── Refresh ────────────────────────────────────────────────────────────────
 
   async refreshAll() {
     this.game.log('🔄 Rafraîchissement...', 'info');
@@ -283,6 +296,32 @@ export class App implements OnInit {
     if (this.game.playerDetails()?.marketPlaceDiscovered) {
       this.priceHistory.start();
     }
+    this.game.log('Données mises à jour.', 'info');
+  }
+
+  /** Charge (ou recharge) la carte depuis le backend map (localhost:8080) */
+  private loadMap(): Promise<void> {
+    return new Promise(resolve => {
+      this.mapService.getMap().subscribe({
+        next: (mapState) => {
+          this.game.mapState.set(mapState);
+          if (mapState.cells?.length) {
+            this.game.addCells(mapState.cells);
+          }
+          if (mapState.boatPosition) {
+            const ship = this.game.ship();
+            if (ship) {
+              this.game.ship.set({ ...ship, currentPosition: mapState.boatPosition });
+            }
+          }
+          resolve();
+        },
+        error: (err) => {
+          this.game.log(`Map backend indisponible: ${err.message}`, 'warning');
+          resolve();
+        },
+      });
+    });
   }
 
   private async refreshPlayer() {

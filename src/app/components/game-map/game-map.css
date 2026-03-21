@@ -1,14 +1,32 @@
-.map-container {
-  display: grid;
-  gap: 1px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid var(--accent);
-  border-radius: 4px;
-  overflow: auto;
-  max-height: 100%;
-  max-width: 100%;
+.map-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
 }
 
+/* Viewport fixe — taille = VIEWPORT_COLS × VIEWPORT_ROWS × --tile-size */
+.map-viewport {
+  display: grid;
+  gap: 1px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  /* Pas de overflow: auto — la grille est exactement de la taille du viewport */
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.map-viewport.dragging {
+  cursor: grabbing;
+}
+
+/* Tuiles */
 .tile {
   width: var(--tile-size);
   height: var(--tile-size);
@@ -17,17 +35,16 @@
   justify-content: center;
   font-size: 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.03);
-  transition: background 0.15s, border-color 0.15s;
-  cursor: default;
+  transition: border-color 0.1s;
   user-select: none;
 }
 
-.tile:hover { border-color: rgba(78, 204, 163, 0.4); z-index: 1; }
+.tile:hover { border-color: rgba(78, 204, 163, 0.35); z-index: 1; }
 
 .tile-sea   { background: #0c2340; }
 .tile-sand  { background: #8b7340; }
 .tile-rocks { background: #4a4a4a; }
-.tile-fog   { background: #0a0a12; color: transparent; }
+.tile-fog   { background: #0a0a12; }
 
 .tile-ship {
   background: #1a3a2a !important;
@@ -37,10 +54,36 @@
   font-size: 1.3rem;
 }
 
-.tile-risk { border-color: rgba(233, 69, 96, 0.5) !important; }
-
 @keyframes ship-pulse {
   0%, 100% { box-shadow: inset 0 0 12px rgba(78, 204, 163, 0.4); }
-  50%      { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
+  50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
 }
 
+/* Bouton recentrer */
+.btn-recenter {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 10;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-recenter:hover {
+  background: rgba(78, 204, 163, 0.15);
+}
+
+/* Coordonnées */
+.map-coords {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  align-self: flex-start;
+  padding-left: 4px;
+}

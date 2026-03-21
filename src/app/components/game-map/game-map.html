@@ -1,13 +1,37 @@
-<div class="map-container"
-  [style.grid-template-columns]="'repeat(' + gridCols + ', var(--tile-size))'"
-  [style.grid-template-rows]="'repeat(' + gridRows + ', var(--tile-size))'">
-  @for (row of gridArray; track $index; let y = $index) {
-    @for (cell of row; track $index; let x = $index) {
-      <div class="tile"
-        [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '') + (cell?.risk ? ' tile-risk' : '')"
-        [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.islandId ? ' ile:' + cell.islandId : '') + (cell.risk ? ' ⚠RISQUE' : '') : 'Inexploré'">
-        {{ getCellIcon(cell) }}
-      </div>
-    }
+<div class="map-wrapper">
+
+  <!-- Bouton recentrer -->
+  <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau">
+    🎯 Recentrer
+  </button>
+
+  <!-- Coordonnées de la vue -->
+  @if (ship) {
+    <div class="map-coords">
+      Bateau : ({{ ship.currentPosition?.x ?? '?' }}, {{ ship.currentPosition?.y ?? '?' }})
+      @if (viewOffsetX() !== 0 || viewOffsetY() !== 0) {
+        &nbsp;— Vue décalée
+      }
+    </div>
   }
+
+  <!-- Viewport fixe — drag pour déplacer la vue -->
+  <div #viewport
+    class="map-viewport"
+    [class.dragging]="isDragging"
+    (mousedown)="onMouseDown($event)"
+    (touchstart)="onTouchStart($event)"
+    [style.grid-template-columns]="'repeat(' + viewportCols + ', var(--tile-size))'"
+    [style.grid-template-rows]="'repeat(' + viewportRows + ', var(--tile-size))'">
+
+    @for (row of gridArray; track $index) {
+      @for (cell of row; track $index) {
+        <div class="tile"
+          [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
+          [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
+          {{ getCellIcon(cell) }}
+        </div>
+      }
+    }
+  </div>
 </div>
