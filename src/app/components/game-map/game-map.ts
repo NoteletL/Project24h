@@ -1,10 +1,10 @@
-import { Component, inject, signal, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit } from '@angular/core';
+import { Component, inject, signal, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { Cell } from '../../models/map.model';
 
-// Taille fixe du viewport en pixels (doit correspondre au CSS)
-const VIEWPORT_W = 720;
-const VIEWPORT_H = 528;
+// Dimensions par défaut (mode fenêtré)
+const DEFAULT_W = 720;
+const DEFAULT_H = 528;
 
 // Zoom = nombre de colonnes visibles (impair pour centrage)
 const ZOOM_DEFAULT = 15;
@@ -18,14 +18,20 @@ const ZOOM_STEP    = 10;
   templateUrl: './game-map.html',
   styleUrl: './game-map.css',
 })
-export class GameMapComponent implements OnInit, AfterViewInit {
+export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly game = inject(GameStateService);
 
-  @ViewChild('viewport') viewportRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('viewport')   viewportRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('mapWrapper') wrapperRef!:  ElementRef<HTMLDivElement>;
 
-  readonly viewOffsetX = signal(0);
-  readonly viewOffsetY = signal(0);
-  readonly zoomCols    = signal(ZOOM_DEFAULT);
+  readonly viewOffsetX  = signal(0);
+  readonly viewOffsetY  = signal(0);
+  readonly zoomCols     = signal(ZOOM_DEFAULT);
+  readonly isFullscreen = signal(false);
+
+  /** Dimensions réelles du viewport mesurées par ResizeObserver */
+  readonly viewportW = signal(DEFAULT_W);
+  readonly viewportH = signal(DEFAULT_H);
 
   readonly zoomMin = ZOOM_MIN;
   readonly zoomMax = ZOOM_MAX;
@@ -36,12 +42,13 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   private dragStartOffsetX = 0;
   private dragStartOffsetY = 0;
   private userHasPanned = false;
+  private resizeObserver?: ResizeObserver;
 
   get ship() { return this.game.ship(); }
 
-  /** Taille d'une tuile en px = largeur fixe / nombre de colonnes */
+  /** Taille d'une tuile en px = largeur mesurée / nombre de colonnes */
   get tilePx(): number {
-    return Math.floor(VIEWPORT_W / this.zoomCols());
+    return Math.max(4, Math.floor(this.viewportW() / this.zoomCols()));
   }
 
   /** Taille de la police proportionnelle à la tuile */
@@ -49,10 +56,10 @@ export class GameMapComponent implements OnInit, AfterViewInit {
     return `${Math.floor(this.tilePx * 0.6)}px`;
   }
 
-  /** Nombre de lignes dérivé de la hauteur fixe et de la taille de tuile, toujours impair */
+  /** Nombre de lignes dérivé de la hauteur mesurée et de la taille de tuile, toujours impair */
   get zoomRows(): number {
-    const r = Math.floor(VIEWPORT_H / this.tilePx);
-    return r % 2 === 0 ? r - 1 : r;
+    const r = Math.floor(this.viewportH() / this.tilePx);
+    return Math.max(1, r % 2 === 0 ? r - 1 : r);
   }
 
   private get viewCenterX(): number {
@@ -67,6 +74,8 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   private get viewStartY(): number {
     return this.viewCenterY - Math.floor(this.zoomRows / 2);
   }
+
+  // ...existing code (gridArray, zoom, pan, cell helpers)...
 
   get gridArray(): (Cell | null)[][] {
     const byCoord = new Map<string, Cell>();
@@ -86,8 +95,6 @@ export class GameMapComponent implements OnInit, AfterViewInit {
     return result;
   }
 
-  // ── Zoom ─────────────────────────────────────────────────────────────────
-
   zoomIn():    void { this.zoomCols.update(v => Math.max(v - ZOOM_STEP, ZOOM_MIN)); }
   zoomOut():   void { this.zoomCols.update(v => Math.min(v + ZOOM_STEP, ZOOM_MAX)); }
   zoomReset(): void { this.zoomCols.set(ZOOM_DEFAULT); }
@@ -97,8 +104,6 @@ export class GameMapComponent implements OnInit, AfterViewInit {
     if (e.deltaY < 0) this.zoomIn();
     else              this.zoomOut();
   }
-
-  // ── Pan ───────────────────────────────────────────────────────────────────
 
   recenter(): void {
     this.viewOffsetX.set(0);
@@ -130,8 +135,56 @@ export class GameMapComponent implements OnInit, AfterViewInit {
     return cell.type === 'SAND' ? '🏝️' : '';
   }
 
+  // ── Plein écran ───────────────────────────────────────────────────────────
+
+  async toggleFullscreen(): Promise<void> {
+    const wrapper = this.wrapperRef?.nativeElement;
+    if (!wrapper) return;
+    try {
+      if (!document.fullscreenElement) {
+        await wrapper.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch { /* refusé hors geste utilisateur ou navigateur non supporté */ }
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    const active = !!document.fullscreenElement;
+    this.isFullscreen.set(active);
+    // En sortant du plein écran : réinitialiser les dimensions par défaut
+    // (le ResizeObserver reprendra la main dès que l'élément retrouve sa taille)
+    if (!active) {
+      this.viewportW.set(DEFAULT_W);
+      this.viewportH.set(DEFAULT_H);
+    }
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
   ngOnInit(): void {}
-  ngAfterViewInit(): void {}
+
+  ngAfterViewInit(): void {
+    const el = this.viewportRef?.nativeElement;
+    if (!el) return;
+    // Mesure la taille réelle du viewport à chaque redimensionnement (inclut fullscreen)
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = Math.floor(entry.contentRect.width);
+        const h = Math.floor(entry.contentRect.height);
+        if (w > 0) this.viewportW.set(w);
+        if (h > 0) this.viewportH.set(h);
+      }
+    });
+    this.resizeObserver.observe(el);
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  // ── Souris / Tactile ──────────────────────────────────────────────────────
 
   onMouseDown(e: MouseEvent): void {
     this.isDragging = true;

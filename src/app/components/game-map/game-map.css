@@ -16,6 +16,206 @@
   width: 100%;
   padding: 0 4px;
   flex-shrink: 0;
+  z-index: 2;
+}
+
+/* ── Toolbar en mode plein écran : HUD en bas, semi-transparent ───────────── */
+.map-wrapper.is-fullscreen .map-toolbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 14px;
+  background: rgba(10, 10, 26, 0.75);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(78, 204, 163, 0.25);
+  gap: 12px;
+}
+
+.map-coords {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.is-fullscreen .map-coords {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.offset-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(240, 192, 64, 0.15);
+  color: var(--gold);
+  font-size: 0.7rem;
+}
+
+/* ── Zoom controls ────────────────────────────────────────────────────────── */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-zoom {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  user-select: none;
+}
+
+.btn-zoom:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--green);
+}
+
+.btn-zoom:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-zoom:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+.btn-zoom-label {
+  width: 48px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.btn-zoom-label:hover {
+  color: var(--text-primary);
+}
+
+/* ── Recentrer ────────────────────────────────────────────────────────────── */
+.btn-recenter {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-recenter:hover { background: rgba(78, 204, 163, 0.15); }
+.btn-recenter:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ── Bouton plein écran ────────────────────────────────────────────────────── */
+.btn-fullscreen {
+  padding: 4px 9px;
+  font-size: 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-light);
+  border-radius: 6px;
+  color: var(--accent-light);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.btn-fullscreen:hover { background: rgba(83, 52, 131, 0.35); border-color: var(--accent-light); }
+.btn-fullscreen:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+.is-fullscreen .btn-fullscreen {
+  border-color: var(--red);
+  color: var(--red);
+}
+.is-fullscreen .btn-fullscreen:hover { background: rgba(233, 69, 96, 0.15); }
+
+/* ── Viewport — remplit son conteneur, taille calculée par ResizeObserver ── */
+.map-viewport {
+  display: grid;
+  gap: 0;
+  width: 720px;
+  height: 528px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.map-viewport:hover    { border-color: var(--green); }
+.map-viewport.dragging { cursor: grabbing; }
+
+/* ── Viewport en plein écran ─────────────────────────────────────────────── */
+.map-wrapper.is-fullscreen .map-viewport {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Styles fullscreen natifs du navigateur ──────────────────────────────── */
+.map-wrapper:fullscreen,
+.map-wrapper:-webkit-full-screen {
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+/* ── Tuiles — taille définie inline via tilePx() ────────────────────────── */
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: border-color 0.1s;
+  user-select: none;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.tile:hover { border-color: rgba(78, 204, 163, 0.35); z-index: 1; }
+
+.tile-sea   { background: #0c2340; }
+.tile-sand  { background: #8b7340; }
+.tile-rocks { background: #4a4a4a; }
+.tile-fog   { background: #0a0a12; }
+
+.tile-ship {
+  background: #1a3a2a !important;
+  box-shadow: inset 0 0 14px rgba(78, 204, 163, 0.6);
+  border-color: var(--green) !important;
+  animation: ship-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ship-pulse {
+  0%, 100% { box-shadow: inset 0 0 12px rgba(78, 204, 163, 0.4); }
+  50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
+}
+
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .map-coords {

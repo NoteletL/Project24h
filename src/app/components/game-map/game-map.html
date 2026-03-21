@@ -1,4 +1,4 @@
-<div class="map-wrapper">
+<div class="map-wrapper" #mapWrapper [class.is-fullscreen]="isFullscreen()">
 
   <!-- Toolbar -->
   <div class="map-toolbar">
@@ -12,15 +12,24 @@
     }
 
     <div class="zoom-controls">
-      <button class="btn-zoom" (click)="zoomIn()"  [disabled]="zoomCols() <= zoomMin" title="Zoom avant — moins de cases (molette ↑)">＋</button>
-      <button class="btn-zoom btn-zoom-label" (click)="zoomReset()" title="Zoom par défaut">{{ zoomCols() }}×{{ zoomRows }}</button>
-      <button class="btn-zoom" (click)="zoomOut()" [disabled]="zoomCols() >= zoomMax" title="Zoom arrière — plus de cases (molette ↓)">－</button>
+      <button class="btn-zoom" (click)="zoomIn()"  [disabled]="zoomCols() <= zoomMin" title="Zoom avant — moins de cases (molette ↑)" aria-label="Zoom avant">＋</button>
+      <button class="btn-zoom btn-zoom-label" (click)="zoomReset()" title="Zoom par défaut" aria-label="Réinitialiser le zoom">{{ zoomCols() }}×{{ zoomRows }}</button>
+      <button class="btn-zoom" (click)="zoomOut()" [disabled]="zoomCols() >= zoomMax" title="Zoom arrière — plus de cases (molette ↓)" aria-label="Zoom arrière">－</button>
     </div>
 
-    <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau">🎯</button>
+    <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau" aria-label="Recentrer la carte sur le bateau">🎯</button>
+
+    <button
+      class="btn-fullscreen"
+      (click)="toggleFullscreen()"
+      [attr.aria-pressed]="isFullscreen()"
+      [attr.aria-label]="isFullscreen() ? 'Quitter le plein écran' : 'Afficher la carte en plein écran'"
+      [title]="isFullscreen() ? 'Quitter le plein écran (Échap)' : 'Plein écran'">
+      {{ isFullscreen() ? '✕' : '⛶' }}
+    </button>
   </div>
 
-  <!-- Viewport fixe 720×528px — seul le nombre de cases change selon le zoom -->
+  <!-- Viewport — taille pilotée par le CSS + mesurée par ResizeObserver -->
   <div #viewport
     class="map-viewport"
     [class.dragging]="isDragging"
