@@ -2,9 +2,15 @@ import { Component, inject, signal, HostListener, ElementRef, ViewChild, AfterVi
 import { GameStateService } from '../../services/game-state.service';
 import { Cell } from '../../models/map.model';
 
-// Taille du viewport en nombre de tuiles visibles
-const VIEWPORT_COLS = 15;
-const VIEWPORT_ROWS = 11;
+// Taille fixe du viewport en pixels (doit correspondre au CSS)
+const VIEWPORT_W = 720;
+const VIEWPORT_H = 528;
+
+// Zoom = nombre de colonnes visibles (impair pour centrage)
+const ZOOM_DEFAULT = 15;
+const ZOOM_MIN     = 7;
+const ZOOM_MAX     = 31;
+const ZOOM_STEP    = 2;
 
 @Component({
   selector: 'app-game-map',
@@ -17,70 +23,89 @@ export class GameMapComponent implements OnInit, AfterViewInit {
 
   @ViewChild('viewport') viewportRef!: ElementRef<HTMLDivElement>;
 
-  // Offset de la vue (en nombre de tuiles) par rapport au bateau
-  // (0,0) = centré sur le bateau
   readonly viewOffsetX = signal(0);
   readonly viewOffsetY = signal(0);
+  readonly zoomCols    = signal(ZOOM_DEFAULT);
 
-  // Drag state
+  readonly zoomMin = ZOOM_MIN;
+  readonly zoomMax = ZOOM_MAX;
+
   protected isDragging = false;
   private dragStartX = 0;
   private dragStartY = 0;
   private dragStartOffsetX = 0;
   private dragStartOffsetY = 0;
-  private tileSize = 48;
-
-  // true = l'utilisateur a déplacé la vue manuellement
   private userHasPanned = false;
 
   get ship() { return this.game.ship(); }
 
-  /** Coordonnée centrale de la vue (position du bateau + offset) */
+  /** Taille d'une tuile en px = largeur fixe / nombre de colonnes */
+  get tilePx(): number {
+    return Math.floor(VIEWPORT_W / this.zoomCols());
+  }
+
+  /** Taille de la police proportionnelle à la tuile */
+  get tileFontSize(): string {
+    return `${Math.floor(this.tilePx * 0.6)}px`;
+  }
+
+  /** Nombre de lignes dérivé de la hauteur fixe et de la taille de tuile, toujours impair */
+  get zoomRows(): number {
+    const r = Math.floor(VIEWPORT_H / this.tilePx);
+    return r % 2 === 0 ? r - 1 : r;
+  }
+
   private get viewCenterX(): number {
     return (this.ship?.currentPosition?.x ?? 0) + this.viewOffsetX();
   }
   private get viewCenterY(): number {
     return (this.ship?.currentPosition?.y ?? 0) + this.viewOffsetY();
   }
-
-  /** Tuile en haut à gauche du viewport */
   private get viewStartX(): number {
-    return this.viewCenterX - Math.floor(VIEWPORT_COLS / 2);
+    return this.viewCenterX - Math.floor(this.zoomCols() / 2);
   }
   private get viewStartY(): number {
-    return this.viewCenterY - Math.floor(VIEWPORT_ROWS / 2);
+    return this.viewCenterY - Math.floor(this.zoomRows / 2);
   }
 
-  readonly viewportCols = VIEWPORT_COLS;
-  readonly viewportRows = VIEWPORT_ROWS;
-
-  /** Grille visible (VIEWPORT_COLS × VIEWPORT_ROWS), null = fog */
   get gridArray(): (Cell | null)[][] {
     const byCoord = new Map<string, Cell>();
     for (const c of this.game.knownCells().values()) {
       byCoord.set(`${c.x},${c.y}`, c);
     }
-    const rows: (Cell | null)[][] = [];
-    for (let row = 0; row < VIEWPORT_ROWS; row++) {
+    const cols = this.zoomCols();
+    const rows = this.zoomRows;
+    const result: (Cell | null)[][] = [];
+    for (let row = 0; row < rows; row++) {
       const line: (Cell | null)[] = [];
-      for (let col = 0; col < VIEWPORT_COLS; col++) {
-        const wx = this.viewStartX + col;
-        const wy = this.viewStartY + row;
-        line.push(byCoord.get(`${wx},${wy}`) ?? null);
+      for (let col = 0; col < cols; col++) {
+        line.push(byCoord.get(`${this.viewStartX + col},${this.viewStartY + row}`) ?? null);
       }
-      rows.push(line);
+      result.push(line);
     }
-    return rows;
+    return result;
   }
 
-  /** Recentre la vue sur le bateau */
+  // ── Zoom ─────────────────────────────────────────────────────────────────
+
+  zoomIn():    void { this.zoomCols.update(v => Math.max(v - ZOOM_STEP, ZOOM_MIN)); }
+  zoomOut():   void { this.zoomCols.update(v => Math.min(v + ZOOM_STEP, ZOOM_MAX)); }
+  zoomReset(): void { this.zoomCols.set(ZOOM_DEFAULT); }
+
+  onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    if (e.deltaY < 0) this.zoomIn();
+    else              this.zoomOut();
+  }
+
+  // ── Pan ───────────────────────────────────────────────────────────────────
+
   recenter(): void {
     this.viewOffsetX.set(0);
     this.viewOffsetY.set(0);
     this.userHasPanned = false;
   }
 
-  /** Appelé par app.ts après chaque déplacement — recentre sauf si l'utilisateur a panné */
   recenterOnMove(): void {
     if (!this.userHasPanned) {
       this.viewOffsetX.set(0);
@@ -89,7 +114,7 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   }
 
   isShipHere(cell: Cell | null): boolean {
-    const ship = this.ship; // variable locale nécessaire pour le narrowing TypeScript sur un getter
+    const ship = this.ship;
     if (!cell || !ship?.currentPosition) return false;
     return cell.id === ship.currentPosition.id;
   }
@@ -102,22 +127,11 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   getCellIcon(cell: Cell | null): string {
     if (!cell || !cell.type) return '';
     if (this.isShipHere(cell)) return '⛵';
-    switch (cell.type) {
-      case 'SAND': return '🏝️';
-      default:     return '';
-    }
+    return cell.type === 'SAND' ? '🏝️' : '';
   }
-
-  // ── Drag to pan ──────────────────────────────────────────────────────────
 
   ngOnInit(): void {}
-
-  ngAfterViewInit(): void {
-    // Lire la taille réelle des tuiles depuis le CSS
-    const style = getComputedStyle(document.documentElement);
-    const ts = style.getPropertyValue('--tile-size').trim();
-    if (ts) this.tileSize = parseInt(ts, 10) || 48;
-  }
+  ngAfterViewInit(): void {}
 
   onMouseDown(e: MouseEvent): void {
     this.isDragging = true;
@@ -131,21 +145,16 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   @HostListener('document:mousemove', ['$event'])
   onMouseMove(e: MouseEvent): void {
     if (!this.isDragging) return;
-    const dx = e.clientX - this.dragStartX;
-    const dy = e.clientY - this.dragStartY;
-    const tilesDx = Math.round(dx / this.tileSize);
-    const tilesDy = Math.round(dy / this.tileSize);
+    const tilesDx = Math.round((e.clientX - this.dragStartX) / this.tilePx);
+    const tilesDy = Math.round((e.clientY - this.dragStartY) / this.tilePx);
     if (tilesDx !== 0 || tilesDy !== 0) this.userHasPanned = true;
     this.viewOffsetX.set(this.dragStartOffsetX - tilesDx);
     this.viewOffsetY.set(this.dragStartOffsetY - tilesDy);
   }
 
   @HostListener('document:mouseup')
-  onMouseUp(): void {
-    this.isDragging = false;
-  }
+  onMouseUp(): void { this.isDragging = false; }
 
-  // Touch support
   onTouchStart(e: TouchEvent): void {
     if (e.touches.length !== 1) return;
     this.isDragging = true;
@@ -158,17 +167,13 @@ export class GameMapComponent implements OnInit, AfterViewInit {
   @HostListener('document:touchmove', ['$event'])
   onTouchMove(e: TouchEvent): void {
     if (!this.isDragging || e.touches.length !== 1) return;
-    const dx = e.touches[0].clientX - this.dragStartX;
-    const dy = e.touches[0].clientY - this.dragStartY;
-    const tilesDx = Math.round(dx / this.tileSize);
-    const tilesDy = Math.round(dy / this.tileSize);
+    const tilesDx = Math.round((e.touches[0].clientX - this.dragStartX) / this.tilePx);
+    const tilesDy = Math.round((e.touches[0].clientY - this.dragStartY) / this.tilePx);
     if (tilesDx !== 0 || tilesDy !== 0) this.userHasPanned = true;
     this.viewOffsetX.set(this.dragStartOffsetX - tilesDx);
     this.viewOffsetY.set(this.dragStartOffsetY - tilesDy);
   }
 
   @HostListener('document:touchend')
-  onTouchEnd(): void {
-    this.isDragging = false;
-  }
+  onTouchEnd(): void { this.isDragging = false; }
 }

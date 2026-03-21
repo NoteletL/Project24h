@@ -1,33 +1,42 @@
 <div class="map-wrapper">
 
-  <!-- Bouton recentrer -->
-  <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau">
-    🎯 Recentrer
-  </button>
+  <!-- Toolbar -->
+  <div class="map-toolbar">
+    @if (ship) {
+      <span class="map-coords">
+        ⛵ ({{ ship.currentPosition?.x ?? '?' }}, {{ ship.currentPosition?.y ?? '?' }})
+        @if (viewOffsetX() !== 0 || viewOffsetY() !== 0) {
+          <span class="offset-badge">vue décalée</span>
+        }
+      </span>
+    }
 
-  <!-- Coordonnées de la vue -->
-  @if (ship) {
-    <div class="map-coords">
-      Bateau : ({{ ship.currentPosition?.x ?? '?' }}, {{ ship.currentPosition?.y ?? '?' }})
-      @if (viewOffsetX() !== 0 || viewOffsetY() !== 0) {
-        &nbsp;— Vue décalée
-      }
+    <div class="zoom-controls">
+      <button class="btn-zoom" (click)="zoomIn()"  [disabled]="zoomCols() <= zoomMin" title="Zoom avant — moins de cases (molette ↑)">＋</button>
+      <button class="btn-zoom btn-zoom-label" (click)="zoomReset()" title="Zoom par défaut">{{ zoomCols() }}×{{ zoomRows }}</button>
+      <button class="btn-zoom" (click)="zoomOut()" [disabled]="zoomCols() >= zoomMax" title="Zoom arrière — plus de cases (molette ↓)">－</button>
     </div>
-  }
 
-  <!-- Viewport fixe — drag pour déplacer la vue -->
+    <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau">🎯</button>
+  </div>
+
+  <!-- Viewport fixe 720×528px — seul le nombre de cases change selon le zoom -->
   <div #viewport
     class="map-viewport"
     [class.dragging]="isDragging"
+    [style.grid-template-columns]="'repeat(' + zoomCols() + ', ' + tilePx + 'px)'"
+    [style.grid-template-rows]="'repeat(' + zoomRows + ', ' + tilePx + 'px)'"
     (mousedown)="onMouseDown($event)"
     (touchstart)="onTouchStart($event)"
-    [style.grid-template-columns]="'repeat(' + viewportCols + ', var(--tile-size))'"
-    [style.grid-template-rows]="'repeat(' + viewportRows + ', var(--tile-size))'">
+    (wheel)="onWheel($event)">
 
     @for (row of gridArray; track $index) {
       @for (cell of row; track $index) {
         <div class="tile"
           [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
+          [style.width]="tilePx + 'px'"
+          [style.height]="tilePx + 'px'"
+          [style.font-size]="tileFontSize"
           [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
           {{ getCellIcon(cell) }}
         </div>

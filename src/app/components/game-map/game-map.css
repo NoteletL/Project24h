@@ -8,35 +8,122 @@
   height: 100%;
 }
 
-/* Viewport fixe — taille = VIEWPORT_COLS × VIEWPORT_ROWS × --tile-size */
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.map-coords {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.offset-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(240, 192, 64, 0.15);
+  color: var(--gold);
+  font-size: 0.7rem;
+}
+
+/* ── Zoom controls ────────────────────────────────────────────────────────── */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-zoom {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  user-select: none;
+}
+
+.btn-zoom:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--green);
+}
+
+.btn-zoom:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-zoom-label {
+  width: 48px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.btn-zoom-label:hover {
+  color: var(--text-primary);
+}
+
+/* ── Recentrer ────────────────────────────────────────────────────────────── */
+.btn-recenter {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-recenter:hover {
+  background: rgba(78, 204, 163, 0.15);
+}
+
+/* ── Viewport — taille FIXE, les tuiles s'adaptent ─────────────────────── */
 .map-viewport {
   display: grid;
-  gap: 1px;
+  gap: 0;
+  width: 720px;
+  height: 528px;
   background: rgba(0, 0, 0, 0.5);
   border: 2px solid var(--accent);
   border-radius: 4px;
   cursor: grab;
   user-select: none;
-  /* Pas de overflow: auto — la grille est exactement de la taille du viewport */
   overflow: hidden;
   flex-shrink: 0;
+  transition: border-color 0.15s;
 }
 
-.map-viewport.dragging {
-  cursor: grabbing;
-}
+.map-viewport:hover    { border-color: var(--green); }
+.map-viewport.dragging { cursor: grabbing; }
 
-/* Tuiles */
+/* ── Tuiles — taille définie inline via tilePx() ────────────────────────── */
 .tile {
-  width: var(--tile-size);
-  height: var(--tile-size);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.03);
   transition: border-color 0.1s;
   user-select: none;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .tile:hover { border-color: rgba(78, 204, 163, 0.35); z-index: 1; }
@@ -51,7 +138,6 @@
   box-shadow: inset 0 0 14px rgba(78, 204, 163, 0.6);
   border-color: var(--green) !important;
   animation: ship-pulse 1.5s ease-in-out infinite;
-  font-size: 1.3rem;
 }
 
 @keyframes ship-pulse {
@@ -59,31 +145,3 @@
   50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
 }
 
-/* Bouton recentrer */
-.btn-recenter {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  z-index: 10;
-  padding: 4px 10px;
-  font-size: 0.78rem;
-  font-family: inherit;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--green);
-  border-radius: 6px;
-  color: var(--green);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-recenter:hover {
-  background: rgba(78, 204, 163, 0.15);
-}
-
-/* Coordonnées */
-.map-coords {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  align-self: flex-start;
-  padding-left: 4px;
-}
