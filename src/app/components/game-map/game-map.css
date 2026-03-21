@@ -24,9 +24,10 @@
 
 .tile:hover { border-color: rgba(78, 204, 163, 0.4); z-index: 1; }
 
-.tile-sea  { background: #0c2340; }
-.tile-sand { background: #8b7340; }
-.tile-fog  { background: #0a0a12; color: transparent; }
+.tile-sea   { background: #0c2340; }
+.tile-sand  { background: #8b7340; }
+.tile-rocks { background: #4a4a4a; }
+.tile-fog   { background: #0a0a12; color: transparent; }
 
 .tile-ship {
   background: #1a3a2a !important;

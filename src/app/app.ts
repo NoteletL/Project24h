@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { GameMapComponent } from './components/game-map/game-map';
 import { ControlsComponent } from './components/controls/controls';
 import { LogPanelComponent } from './components/log-panel/log-panel';
-import { ApiService, API_CONFIG } from './services/api.service';
+import { ApiService, API_CONFIG, Direction } from './services/api.service';
 import { GameStateService } from './services/game-state.service';
 
 @Component({
@@ -17,10 +17,13 @@ export class App implements OnInit {
   private api = inject(ApiService);
   readonly game = inject(GameStateService);
 
+  // Champs inscription
+  mailInput = '';
+  signupCode = '';
+  teamName = '';
+
+  // Champ connexion
   tokenInput = '';
-  registerTeamName = '';
-  registerEmail = '';
-  registerCode = '';
 
   async ngOnInit() {
     const saved = localStorage.getItem('3026_token');
@@ -30,6 +33,34 @@ export class App implements OnInit {
       this.game.isAuthenticated.set(true);
       this.game.log('Token restauré depuis le stockage local.', 'info');
       await this.refreshAll();
+    }
+  }
+
+  // --- Auth ---
+
+  async fetchSignupCode() {
+    if (!this.mailInput.trim()) return;
+    try {
+      const res = await this.api.getSignupCode(this.mailInput.trim());
+      this.signupCode = res.signupCode;
+      this.game.log(`Code reçu ! Collez-le dans le champ "Code d'inscription".`, 'info');
+    } catch (e: any) {
+      this.game.log(`Erreur signup code: ${e.message}`, 'error');
+    }
+  }
+
+  async registerPlayer() {
+    if (!this.teamName.trim() || !this.signupCode.trim()) return;
+    try {
+      const res = await this.api.registerPlayer(this.teamName.trim(), this.signupCode.trim());
+      API_CONFIG.TOKEN = res.codingGameId;
+      localStorage.setItem('3026_token', res.codingGameId);
+      this.game.token.set(res.codingGameId);
+      this.game.isAuthenticated.set(true);
+      this.game.log(`Inscription réussie ! Équipe: ${res.name}`, 'action');
+      await this.refreshAll();
+    } catch (e: any) {
+      this.game.log(`Erreur inscription: ${e.message}`, 'error');
     }
   }
 
@@ -43,207 +74,114 @@ export class App implements OnInit {
     await this.refreshAll();
   }
 
-  async fetchSignupCodes() {
-    try {
-      const result = await this.api.getSignupCodes();
-      this.game.log(`Codes reçus: ${JSON.stringify(result)}`, 'info');
-    } catch (e: any) {
-      this.game.log(`Erreur signup codes: ${e.message}`, 'error');
-    }
+  logout() {
+    localStorage.removeItem('3026_token');
+    API_CONFIG.TOKEN = '';
+    this.game.token.set('');
+    this.game.isAuthenticated.set(false);
+    this.game.log('Déconnecté.', 'info');
   }
 
-  async registerTeam() {
-    try {
-      const result = await this.api.register({
-        teamName: this.registerTeamName,
-        email: this.registerEmail,
-        signupCode: this.registerCode,
-      });
-      API_CONFIG.TOKEN = result.token;
-      localStorage.setItem('3026_token', result.token);
-      this.game.token.set(result.token);
-      this.game.isAuthenticated.set(true);
-      this.game.log(`Inscription réussie ! Équipe: ${result.teamName}, Ressource: ${result.mainResource}`, 'action');
-      await this.refreshAll();
-    } catch (e: any) {
-      this.game.log(`Erreur inscription: ${e.message}`, 'error');
-    }
-  }
+  // --- Actions ---
 
   async onAction(action: string) {
-    switch (action) {
-      case 'N': case 'S': case 'E': case 'W':
-        await this.handleMove(action as 'N' | 'S' | 'E' | 'W'); break;
-      case 'build': await this.handleBuild(); break;
-      case 'upgrade-ship': await this.handleUpgradeShip(); break;
-      case 'upgrade-storage': await this.handleUpgradeStorage(); break;
-      case 'rescue': await this.handleRescue(); break;
-      case 'refresh': await this.refreshAll(); break;
-      case 'show-islands': await this.showIslands(); break;
-      case 'show-market': await this.showMarket(); break;
-      case 'show-taxes': await this.showTaxes(); break;
+    const dirs: Direction[] = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'];
+    if (dirs.includes(action as Direction)) {
+      await this.handleMove(action as Direction);
+    } else {
+      switch (action) {
+        case 'build':         await this.handleBuild(); break;
+        case 'upgrade-ship':  await this.handleUpgradeShip(); break;
+        case 'refresh':       await this.refreshAll(); break;
+        case 'show-islands':  await this.showIslands(); break;
+        case 'show-market':   this.game.log('Marketplace disponible après OAS complet.', 'warning'); break;
+        case 'show-taxes':    this.game.log('Taxes disponibles après OAS complet.', 'warning'); break;
+      }
     }
   }
 
-  private async handleMove(dir: 'N' | 'S' | 'E' | 'W') {
+  private async handleMove(dir: Direction) {
     try {
       this.game.log(`⛵ Déplacement ${dir}...`, 'action');
-      await this.api.moveShip(dir);
-      this.game.log(`Déplacement ${dir} réussi.`, 'action');
-      await this.refreshMap();
-      await this.refreshShip();
+      const res = await this.api.moveShip(dir);
+      // Accumuler les cellules découvertes
+      if (res.discoveredCells?.length) {
+        this.game.addCells(res.discoveredCells);
+      }
+      if (res.position) {
+        this.game.addCells([res.position]);
+        // Mettre à jour la position du bateau
+        const ship = this.game.ship();
+        if (ship) {
+          this.game.ship.set({ ...ship, availableMove: res.energy, currentPosition: res.position });
+        }
+      }
+      this.game.log(`${dir} — Énergie restante: ${res.energy} | +${res.discoveredCells?.length ?? 0} cell(s)`, 'action');
     } catch (e: any) {
-      this.game.log(`Erreur déplacement: ${e.message}`, 'error');
+      this.game.log(`Erreur déplacement ${dir}: ${e.message}`, 'error');
     }
   }
 
   private async handleBuild() {
     try {
       this.game.log('🔨 Construction du bateau...', 'action');
-      await this.api.buildShip();
-      this.game.log('Bateau construit !', 'action');
-      await this.refreshShip();
-      await this.refreshMap();
+      const ship = await this.api.buildShip();
+      this.game.ship.set(ship);
+      if (ship.currentPosition) this.game.addCells([ship.currentPosition]);
+      this.game.log(`Bateau construit ! Niveau: ${ship.level.name} — ${ship.availableMove} points de mouvement`, 'action');
     } catch (e: any) {
       this.game.log(`Erreur construction: ${e.message}`, 'error');
     }
   }
 
   private async handleUpgradeShip() {
-    try {
-      this.game.log('⬆️ Amélioration du bateau...', 'action');
-      await this.api.upgradeShip();
-      this.game.log('Bateau amélioré !', 'action');
-      await this.refreshShip();
-      await this.refreshResources();
-    } catch (e: any) {
-      this.game.log(`Erreur amélioration bateau: ${e.message}`, 'error');
-    }
-  }
-
-  private async handleUpgradeStorage() {
-    try {
-      this.game.log('📦 Amélioration de l\'entrepôt...', 'action');
-      await this.api.upgradeStorage();
-      this.game.log('Entrepôt amélioré !', 'action');
-      await this.refreshResources();
-    } catch (e: any) {
-      this.game.log(`Erreur amélioration entrepôt: ${e.message}`, 'error');
-    }
-  }
-
-  private async handleRescue() {
-    try {
-      this.game.log('🆘 Demande de sauvetage...', 'action');
-      await this.api.rescue();
-      this.game.log('Sauvetage en cours !', 'info');
-      await this.refreshShip();
-    } catch (e: any) {
-      this.game.log(`Erreur sauvetage: ${e.message}`, 'error');
-    }
+    this.game.log('Amélioration disponible après OAS complet.', 'warning');
   }
 
   private async showIslands() {
-    try {
-      const islands = await this.api.getIslands();
-      this.game.islands.set(islands);
-      const html = islands.length === 0
-        ? '<p>Aucune île découverte.</p>'
-        : islands.map(i => `
-          <div style="padding:6px 0;border-bottom:1px solid #333;">
-            <strong>${i.isHome ? '🏠' : '🏝️'} ${i.name}</strong>
-            <span style="color:#888;margin-left:8px;">Bonus: +${i.productionBonus}</span>
-            ${i.isHome ? '<span style="color:var(--green);margin-left:8px;">(Home)</span>' : ''}
-          </div>`).join('');
-      this.game.showModal('🏝️ Îles découvertes (' + islands.length + ')', html);
-    } catch (e: any) {
-      this.game.log(`Erreur îles: ${e.message}`, 'error');
+    const details = this.game.playerDetails();
+    if (!details) {
+      this.game.log('Récupération des données...', 'info');
+      await this.refreshPlayer();
     }
+    const d = this.game.playerDetails();
+    if (!d) return;
+
+    const islands = d.discoveredIslands;
+    const html = islands.length === 0
+      ? '<p>Aucune île découverte.</p>'
+      : islands.map(di => `
+          <div style="padding:6px 0;border-bottom:1px solid #333;">
+            <strong>${di.islandState === 'KNOWN' ? '✅' : '👁️'} ${di.island.name}</strong>
+            <span style="color:#888;margin-left:8px;">Bonus: +${di.island.bonusQuotient}</span>
+            <span style="color:var(--blue);margin-left:8px;">${di.islandState}</span>
+          </div>`).join('');
+    this.game.showModal(`🏝️ Îles découvertes (${islands.length})`, html);
   }
 
-  private async showMarket() {
-    try {
-      const offers = await this.api.getMarketOffers();
-      this.game.marketOffers.set(offers);
-      const html = offers.length === 0
-        ? '<p>Aucune offre sur le marketplace.</p>'
-        : offers.map(o => `
-          <div style="padding:6px 0;border-bottom:1px solid #333;">
-            <strong>${o.resource}</strong> x${o.quantity}
-            <span style="color:var(--gold);margin-left:8px;">${o.unitPrice} OR/u</span>
-            <span style="color:#666;margin-left:8px;">par ${o.teamName}</span>
-          </div>`).join('');
-      this.game.showModal('🏪 Marketplace (' + offers.length + ' offres)', html);
-    } catch (e: any) {
-      this.game.log(`Erreur marketplace: ${e.message}`, 'error');
-    }
-  }
-
-  private async showTaxes() {
-    try {
-      const taxes = await this.api.getTaxes();
-      this.game.taxes.set(taxes);
-      const unpaid = taxes.filter(t => !t.paid);
-      const html = unpaid.length === 0
-        ? '<p style="color:var(--green);">Aucune taxe en attente ✅</p>'
-        : unpaid.map(t => `
-          <div style="padding:6px 0;border-bottom:1px solid #333;">
-            <strong style="color:var(--red);">${t.type}</strong>
-            <span style="color:var(--gold);margin-left:8px;">${t.amount} OR</span>
-            <span style="color:#666;margin-left:8px;">${t.description}</span>
-          </div>`).join('');
-      this.game.showModal('💸 Taxes (' + unpaid.length + ' impayées)', html);
-    } catch (e: any) {
-      this.game.log(`Erreur taxes: ${e.message}`, 'error');
-    }
-  }
+  // --- Refresh ---
 
   async refreshAll() {
     this.game.log('🔄 Rafraîchissement...', 'info');
     await Promise.allSettled([
       this.refreshPlayer(),
-      this.refreshMap(),
-      this.refreshShip(),
       this.refreshResources(),
     ]);
-    this.game.log('Données mises à jour.', 'info');
   }
 
   private async refreshPlayer() {
     try {
-      const p = await this.api.getPlayer();
-      this.game.player.set(p);
+      const details = await this.api.getPlayerDetails();
+      this.game.playerDetails.set(details);
     } catch (e: any) {
       this.game.log(`Player: ${e.message}`, 'warning');
     }
   }
 
-  private async refreshMap() {
-    try {
-      const cells = await this.api.getMap();
-      this.game.cells.set(cells);
-    } catch (e: any) {
-      this.game.log(`Map: ${e.message}`, 'warning');
-    }
-  }
-
-  private async refreshShip() {
-    try {
-      const ship = await this.api.getShip();
-      this.game.ship.set(ship);
-    } catch (e: any) {
-      this.game.log(`Ship: ${e.message}`, 'warning');
-    }
-  }
-
   private async refreshResources() {
     try {
-      const [res, storage] = await Promise.all([
-        this.api.getResources(),
-        this.api.getStorage(),
-      ]);
-      this.game.resources.set(res);
-      this.game.storage.set(storage);
+      const resources = await this.api.getResources();
+      this.game.resources.set(resources);
     } catch (e: any) {
       this.game.log(`Ressources: ${e.message}`, 'warning');
     }

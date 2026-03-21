@@ -1,8 +1,10 @@
 <div class="control-panel">
-  <!-- Navigation D-Pad (N/S/E/W) -->
+  <!-- Navigation 8 directions -->
   <div class="nav-controls">
     <div class="nav-row">
+      <button class="btn-nav btn-diag" (click)="onAction('NW')" title="Nord-Ouest">↖</button>
       <button class="btn-nav" (click)="onAction('N')" title="Nord (↑/Z)">⬆️ N</button>
+      <button class="btn-nav btn-diag" (click)="onAction('NE')" title="Nord-Est">↗</button>
     </div>
     <div class="nav-row">
       <button class="btn-nav" (click)="onAction('W')" title="Ouest (←/Q)">⬅️ W</button>
@@ -10,7 +12,9 @@
       <button class="btn-nav" (click)="onAction('E')" title="Est (→/D)">➡️ E</button>
     </div>
     <div class="nav-row">
+      <button class="btn-nav btn-diag" (click)="onAction('SW')" title="Sud-Ouest">↙</button>
       <button class="btn-nav" (click)="onAction('S')" title="Sud (↓/S)">⬇️ S</button>
+      <button class="btn-nav btn-diag" (click)="onAction('SE')" title="Sud-Est">↘</button>
     </div>
   </div>
 
@@ -21,12 +25,6 @@
     </button>
     <button class="btn-action btn-upgrade" (click)="onAction('upgrade-ship')" title="Améliorer bateau (U)">
       ⬆️ Améliorer bateau
-    </button>
-    <button class="btn-action btn-storage" (click)="onAction('upgrade-storage')" title="Améliorer entrepôt">
-      📦 Améliorer entrepôt
-    </button>
-    <button class="btn-action btn-rescue" (click)="onAction('rescue')" title="Sauvetage payant">
-      🆘 Sauvetage
     </button>
     <button class="btn-action btn-islands" (click)="onAction('show-islands')" title="Îles (I)">
       🏝️ Îles

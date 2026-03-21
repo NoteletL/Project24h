@@ -54,6 +54,18 @@
   border-color: var(--accent-light) !important;
 }
 
+.btn-diag {
+  font-size: 1.3rem;
+  border-color: rgba(83, 52, 131, 0.6);
+  color: var(--text-secondary);
+}
+
+.btn-diag:hover {
+  background: rgba(83, 52, 131, 0.3);
+  border-color: var(--accent-light);
+  color: var(--text-primary);
+}
+
 /* Action Buttons */
 .action-controls {
   display: flex;

@@ -1,4 +1,5 @@
 import { Component, output, HostListener } from '@angular/core';
+import { Direction } from '../../services/api.service';
 
 @Component({
   selector: 'app-controls',
@@ -11,8 +12,10 @@ export class ControlsComponent {
 
   private keyMap: Record<string, string> = {
     'ArrowUp': 'N', 'ArrowDown': 'S', 'ArrowLeft': 'W', 'ArrowRight': 'E',
-    'z': 'N', 'Z': 'N', 's': 'S', 'S': 'S',
-    'q': 'W', 'Q': 'W', 'd': 'E', 'D': 'E',
+    'z': 'N', 'Z': 'N',
+    's': 'S', 'S': 'S',
+    'q': 'W', 'Q': 'W',
+    'd': 'E', 'D': 'E',
     'b': 'build', 'B': 'build',
     'u': 'upgrade-ship', 'U': 'upgrade-ship',
     'r': 'refresh', 'R': 'refresh',

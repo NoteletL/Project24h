@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { Cell, Ship, Resources, StorageInfo, Island, PlayerInfo, MarketOffer, Tax } from './api.service';
+import { Cell, Ship, Resource, PlayerDetails, DiscoveredIsland } from './api.service';
 
 export interface LogEntry {
   message: string;
@@ -14,30 +14,16 @@ export class GameStateService {
   readonly isAuthenticated = signal(false);
 
   // Player
-  readonly player = signal<PlayerInfo | null>(null);
+  readonly playerDetails = signal<PlayerDetails | null>(null);
 
-  // Map
-  readonly cells = signal<Cell[]>([]);
+  // Map — cellules découvertes (accumulées)
+  readonly knownCells = signal<Map<string, Cell>>(new Map());
 
   // Ship
   readonly ship = signal<Ship | null>(null);
 
-  // Resources
-  readonly resources = signal<Resources>({ boisium: 0, feronium: 0, charbonium: 0, or: 0 });
-  readonly storage = signal<StorageInfo>({
-    boisium: { current: 0, max: 0 },
-    feronium: { current: 0, max: 0 },
-    charbonium: { current: 0, max: 0 },
-  });
-
-  // Islands
-  readonly islands = signal<Island[]>([]);
-
-  // Marketplace
-  readonly marketOffers = signal<MarketOffer[]>([]);
-
-  // Taxes
-  readonly taxes = signal<Tax[]>([]);
+  // Resources (tableau tel que retourné par l'API)
+  readonly resources = signal<Resource[]>([]);
 
   // Logs
   readonly logs = signal<LogEntry[]>([
@@ -48,6 +34,20 @@ export class GameStateService {
   readonly modalVisible = signal(false);
   readonly modalTitle = signal('');
   readonly modalBody = signal('');
+
+  /** Ajoute ou met à jour des cellules dans la map connue */
+  addCells(cells: Cell[]) {
+    this.knownCells.update(map => {
+      const next = new Map(map);
+      for (const c of cells) next.set(c.id, c);
+      return next;
+    });
+  }
+
+  /** Retourne la quantité d'une ressource donnée */
+  getResource(type: string): number {
+    return this.resources().find(r => r.type === type)?.quantity ?? 0;
+  }
 
   log(message: string, type: LogEntry['type'] = '') {
     const entry: LogEntry = { message, type, timestamp: new Date() };

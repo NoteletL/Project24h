@@ -4,22 +4,31 @@
     <h1>🌊 3026</h1>
     <p class="subtitle">Explorez. Échangez. Découvrez.</p>
 
+    <!-- Étape 1 : obtenir un code -->
     <div class="login-section">
-      <h2>Connexion avec token existant</h2>
+      <h2>1. Obtenir un code d'inscription</h2>
       <div class="input-row">
-        <input type="text" placeholder="Coller votre token ici..." [(ngModel)]="tokenInput" />
-        <button class="btn-action btn-build" (click)="connectWithToken()">Connexion</button>
+        <input type="email" placeholder="Votre email" [(ngModel)]="mailInput" />
+        <button class="btn-action btn-upgrade" (click)="fetchSignupCode()">Envoyer</button>
       </div>
     </div>
 
+    <!-- Étape 2 : créer son équipe -->
     <div class="login-section">
-      <h2>Inscription</h2>
-      <button class="btn-action btn-upgrade" (click)="fetchSignupCodes()">1. Obtenir un code</button>
+      <h2>2. Créer son équipe</h2>
       <div class="input-col">
-        <input type="text" placeholder="Nom d'équipe (alphanumérique)" [(ngModel)]="registerTeamName" />
-        <input type="email" placeholder="Email" [(ngModel)]="registerEmail" />
-        <input type="text" placeholder="Code d'inscription" [(ngModel)]="registerCode" />
-        <button class="btn-action btn-build" (click)="registerTeam()">2. S'inscrire</button>
+        <input type="text" placeholder="Code d'inscription reçu par mail" [(ngModel)]="signupCode" />
+        <input type="text" placeholder="Nom d'équipe (alphanumérique)" [(ngModel)]="teamName" />
+        <button class="btn-action btn-build" (click)="registerPlayer()">S'inscrire</button>
+      </div>
+    </div>
+
+    <!-- Connexion token existant -->
+    <div class="login-section">
+      <h2>Déjà inscrit ? Connectez-vous avec votre codingGameId</h2>
+      <div class="input-row">
+        <input type="text" placeholder="Votre codingGameId (token)" [(ngModel)]="tokenInput" />
+        <button class="btn-action btn-build" (click)="connectWithToken()">Connexion</button>
       </div>
     </div>
 
@@ -27,48 +36,49 @@
       <app-log-panel />
     </section>
   </div>
+
 } @else {
   <!-- Main Game Interface -->
-  <!-- Header -->
-<header class="header">
-  <h1>🌊 3026</h1>
-  <div class="status-bar">
-    @if (game.player(); as player) {
-      <span class="status-team">🏴 {{ player.teamName }}</span>
-      <span class="status-resource">🪵 {{ player.mainResource }}</span>
-    }
-    @if (game.ship(); as ship) {
-      <span class="status-ship">⛵ Niv.{{ ship.level }} — {{ ship.currentMovePoints }}/{{ ship.maxMovePoints }} mvt</span>
-      <span class="status-pos">📍 ({{ ship.position.x }}, {{ ship.position.y }})</span>
-      @if (ship.isBrokenDown) {
-        <span class="status-broken">🚨 EN PANNE</span>
+  <header class="header">
+    <h1>🌊 3026</h1>
+    <div class="status-bar">
+      @if (game.playerDetails(); as p) {
+        <span class="status-team">🏴 {{ p.name }}</span>
+        <span class="status-gold">💰 {{ p.money }} OR</span>
+        <span class="status-quotient">📈 Quotient: {{ p.quotient }}</span>
       }
-    }
-    <span class="status-gold">💰 {{ game.resources().or }} OR</span>
-  </div>
-</header>
+      @if (game.ship(); as ship) {
+        <span class="status-ship">⛵ {{ ship.level.name }} — {{ ship.availableMove }}/{{ ship.level.maxMovement }} mvt</span>
+        <span class="status-pos">📍 ({{ ship.currentPosition.x }}, {{ ship.currentPosition.y }})</span>
+      }
+      <button class="btn-logout" (click)="logout()" title="Déconnexion">⏏️</button>
+    </div>
+  </header>
 
   <!-- Resources bar -->
   <div class="resources-bar">
-    <div class="res-item">
-      <span class="res-icon">🪵</span>
-      <span>BOISIUM: {{ game.resources().boisium }}</span>
-      <span class="res-cap">/ {{ game.storage().boisium.max }}</span>
-    </div>
-    <div class="res-item">
-      <span class="res-icon">⛏️</span>
-      <span>FERONIUM: {{ game.resources().feronium }}</span>
-      <span class="res-cap">/ {{ game.storage().feronium.max }}</span>
-    </div>
-    <div class="res-item">
-      <span class="res-icon">&#x26CF;&#xFE0F;</span>
-      <span>CHARBONIUM: {{ game.resources().charbonium }}</span>
-      <span class="res-cap">/ {{ game.storage().charbonium.max }}</span>
-    </div>
-    <div class="res-item res-gold">
-      <span class="res-icon">💰</span>
-      <span>OR: {{ game.resources().or }}</span>
-    </div>
+    @for (res of game.resources(); track res.type) {
+      <div class="res-item">
+        <span class="res-icon">
+          @switch (res.type) {
+            @case ('BOISIUM')    { 🪵 }
+            @case ('FERONIUM')   { ⛏️ }
+            @case ('CHARBONIUM') { 🪨 }
+          }
+        </span>
+        <span>{{ res.type }}: {{ res.quantity }}</span>
+      </div>
+    }
+    @if (game.playerDetails(); as p) {
+      <div class="res-item res-gold">
+        <span class="res-icon">💰</span>
+        <span>OR: {{ p.money }}</span>
+      </div>
+      <div class="res-item res-islands">
+        <span class="res-icon">🏝️</span>
+        <span>Îles: {{ p.discoveredIslands.length }}</span>
+      </div>
+    }
   </div>
 
   <!-- Map -->
@@ -95,4 +105,3 @@
     </div>
   }
 }
-
