@@ -213,11 +213,10 @@ export class ApiService {
   }
 
   /**
-   * GET /ship/next-level — Récupère la position et l'état courant du bateau.
-   * (Seul endpoint retournant un Ship complet avec currentPosition sans effectuer de mouvement.)
+   * GET /ship — Récupère la position et l'état courant du bateau.
    */
   async getShipState(): Promise<Ship> {
-    return this.request<Ship>('GET', '/ship/next-level');
+    return this.request<Ship>('GET', '/ship');
   }
 
   /** POST /ship/move — Déplace le bateau (8 directions), retourne cellules découvertes */

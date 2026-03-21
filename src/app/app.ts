@@ -165,27 +165,26 @@ export class App implements OnInit {
     }
   }
 
-  /** Récupère la position et l'état courant du bateau via /ship/next-level */
+  /** Récupère la position et l'état courant du bateau via GET /ship */
   private async refreshShip(): Promise<void> {
     try {
       const state = await this.api.getShipState();
       const existing = this.game.ship();
       if (existing) {
-        // Mise à jour de la position et de l'énergie, niveau courant conservé
         this.game.ship.set({
           ...existing,
           availableMove: state.availableMove,
           currentPosition: state.currentPosition,
         });
       } else {
-        // Premier chargement : on prend l'état complet retourné
         this.game.ship.set(state);
       }
       if (state.currentPosition) {
         this.game.addCells([state.currentPosition]);
+        this.game.log(`⛵ Position bateau : (${state.currentPosition.x}, ${state.currentPosition.y}) — énergie : ${state.availableMove}`, 'info');
       }
     } catch {
-      // Aucun bateau encore construit — on ne logge pas d'erreur
+      // Aucun bateau encore construit — silencieux
     }
   }
 
