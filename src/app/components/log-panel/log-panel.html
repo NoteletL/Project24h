@@ -1,8 +1,7 @@
 <div class="log-container">
   @for (entry of logs(); track $index) {
     <p class="log-entry" [class]="'log-entry' + (entry.type ? ' log-' + entry.type : '')">
-      [T{{ entry.turn }}] {{ entry.message }}
+      [{{ entry.timestamp | date:'HH:mm:ss' }}] {{ entry.message }}
     </p>
   }
 </div>
-

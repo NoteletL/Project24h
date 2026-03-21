@@ -1,17 +1,20 @@
 import { Injectable } from '@angular/core';
 
-// --- Configuration API ---
 export const API_CONFIG = {
-  BASE_URL: '',       // À remplir quand l'API sera disponible
-  USE_MOCK: true,     // Passer à false pour utiliser la vraie API
+  BASE_URL: 'http://ec2-35-180-187-43.eu-west3.compute.amazonaws.com:8443',
   TOKEN: '',
 };
 
-// --- Types ---
-export interface Tile {
-  type: string;
+// --- Interfaces 3026 ---
+
+export type CellType = 'SEA' | 'SAND' | 'FOG';
+
+export interface Cell {
   x: number;
   y: number;
+  type: CellType;
+  islandId?: string;
+  risk?: boolean;
 }
 
 export interface Position {
@@ -19,182 +22,223 @@ export interface Position {
   y: number;
 }
 
-export interface MapData {
-  map: Tile[][];
-  playerPos: Position;
-}
-
-export interface ActionResult {
-  success: boolean;
-  action: string;
-  message: string;
-  payload?: any;
-}
-
-export interface PlayerStatus {
-  hp: number;
-  maxHp: number;
-  gold: number;
+export interface Ship {
+  id: string;
   level: number;
-  xp: number;
-  xpNext: number;
-  attack: number;
-  defense: number;
-  inventory: { name: string; type: string; qty: number }[];
+  position: Position;
+  maxMovePoints: number;
+  currentMovePoints: number;
+  visibility: number;
+  isBrokenDown: boolean;
+  rescueAt?: string;
 }
 
-export interface ScanResult {
-  nearby: { type: string; name: string; distance: number; direction: string }[];
+export interface Resources {
+  boisium: number;
+  feronium: number;
+  charbonium: number;
+  or: number;
 }
 
-// --- Constantes de tuiles ---
-export const TILE_TYPES: Record<string, string> = {
-  EMPTY: 'empty',
-  WALL: 'wall',
-  FLOOR: 'floor',
-  GRASS: 'grass',
-  WATER: 'water',
-  DOOR: 'door',
-  CHEST: 'chest',
-  ENEMY: 'enemy',
-  NPC: 'npc',
-  SHOP: 'shop',
-  UNKNOWN: 'unknown',
-};
+export interface StorageInfo {
+  boisium: { current: number; max: number };
+  feronium: { current: number; max: number };
+  charbonium: { current: number; max: number };
+}
 
-export const TILE_ICONS: Record<string, string> = {
-  empty: '',
-  wall: '🧱',
-  floor: '·',
-  grass: '🌿',
-  water: '💧',
-  door: '🚪',
-  chest: '📦',
-  enemy: '👹',
-  npc: '🧙',
-  shop: '🏪',
-  unknown: '?',
-  player: '🧑',
-};
+export interface Island {
+  id: string;
+  name: string;
+  discovered: boolean;
+  productionBonus: number;
+  isHome: boolean;
+}
+
+export interface PlayerInfo {
+  id: string;
+  teamName: string;
+  mainResource: 'BOISIUM' | 'FERONIUM' | 'CHARBONIUM';
+  homeIslandId: string;
+}
+
+export interface MarketOffer {
+  id: string;
+  teamName: string;
+  resource: string;
+  quantity: number;
+  unitPrice: number;
+  createdAt: string;
+}
+
+export interface Tax {
+  id: string;
+  type: 'RESCUE' | 'CHEAT';
+  amount: number;
+  paid: boolean;
+  description: string;
+}
+
+export interface RegisterPayload {
+  teamName: string;
+  email: string;
+  signupCode: string;
+}
+
+export interface RegisterResponse {
+  token: string;
+  playerId: string;
+  teamName: string;
+  mainResource: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
 
-  // --- Génération d'une carte mockée ---
-  private generateMockMap(cols: number, rows: number): Tile[][] {
-    const map: Tile[][] = [];
-    for (let y = 0; y < rows; y++) {
-      const row: Tile[] = [];
-      for (let x = 0; x < cols; x++) {
-        if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) {
-          row.push({ type: TILE_TYPES['WALL'], x, y });
-        } else {
-          const rand = Math.random();
-          let type: string;
-          if (rand < 0.55) type = TILE_TYPES['FLOOR'];
-          else if (rand < 0.70) type = TILE_TYPES['GRASS'];
-          else if (rand < 0.78) type = TILE_TYPES['WATER'];
-          else if (rand < 0.85) type = TILE_TYPES['WALL'];
-          else if (rand < 0.88) type = TILE_TYPES['DOOR'];
-          else if (rand < 0.91) type = TILE_TYPES['CHEST'];
-          else if (rand < 0.94) type = TILE_TYPES['ENEMY'];
-          else if (rand < 0.97) type = TILE_TYPES['NPC'];
-          else type = TILE_TYPES['SHOP'];
-          row.push({ type, x, y });
-        }
-      }
-      map.push(row);
+  private get headers(): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (API_CONFIG.TOKEN) {
+      h['Authorization'] = `Bearer ${API_CONFIG.TOKEN}`;
     }
-    return map;
+    return h;
   }
 
-  // --- Fetch Map ---
-  async fetchMapData(cols = 15, rows = 11): Promise<MapData> {
-    if (API_CONFIG.USE_MOCK) {
-      return new Promise<MapData>(resolve => {
-        setTimeout(() => {
-          resolve({
-            map: this.generateMockMap(cols, rows),
-            playerPos: { x: Math.floor(cols / 2), y: Math.floor(rows / 2) },
-          });
-        }, 200);
-      });
-    }
-
-    const res = await fetch(`${API_CONFIG.BASE_URL}/map`, {
-      headers: { 'Authorization': `Bearer ${API_CONFIG.TOKEN}` }
-    });
+  // --- Auth ---
+  async getSignupCodes(): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/signupcodes`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Signup codes: ${res.status} ${await res.text()}`);
     return res.json();
   }
 
-  // --- Send Action ---
-  async sendAction(action: string, payload: any = {}): Promise<ActionResult> {
-    if (API_CONFIG.USE_MOCK) {
-      return new Promise<ActionResult>(resolve => {
-        setTimeout(() => {
-          resolve({
-            success: true,
-            action,
-            message: `Action "${action}" exécutée (mock)`,
-            payload,
-          });
-        }, 100);
-      });
-    }
-
-    const res = await fetch(`${API_CONFIG.BASE_URL}/action`, {
+  async register(payload: RegisterPayload): Promise<RegisterResponse> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/player/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_CONFIG.TOKEN}`,
-      },
-      body: JSON.stringify({ action, ...payload }),
+      headers: this.headers,
+      body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(`Register: ${res.status} ${await res.text()}`);
     return res.json();
   }
 
-  // --- Fetch Player Status ---
-  async fetchPlayerStatus(): Promise<PlayerStatus> {
-    if (API_CONFIG.USE_MOCK) {
-      return new Promise<PlayerStatus>(resolve => {
-        setTimeout(() => {
-          resolve({
-            hp: 100, maxHp: 100, gold: 42, level: 1,
-            xp: 120, xpNext: 300, attack: 10, defense: 5,
-            inventory: [
-              { name: 'Épée en bois', type: 'weapon', qty: 1 },
-              { name: 'Potion de soin', type: 'consumable', qty: 3 },
-            ],
-          });
-        }, 100);
-      });
-    }
-
-    const res = await fetch(`${API_CONFIG.BASE_URL}/status`, {
-      headers: { 'Authorization': `Bearer ${API_CONFIG.TOKEN}` }
-    });
+  // --- Player ---
+  async getPlayer(): Promise<PlayerInfo> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/player`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Player: ${res.status}`);
     return res.json();
   }
 
-  // --- Scan Area ---
-  async scanArea(): Promise<ScanResult> {
-    if (API_CONFIG.USE_MOCK) {
-      return new Promise<ScanResult>(resolve => {
-        setTimeout(() => {
-          resolve({
-            nearby: [
-              { type: 'enemy', name: 'Goblin', distance: 2, direction: 'nord' },
-              { type: 'chest', name: 'Coffre', distance: 3, direction: 'est' },
-            ],
-          });
-        }, 150);
-      });
-    }
+  // --- Map ---
+  async getMap(): Promise<Cell[]> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/map`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Map: ${res.status}`);
+    return res.json();
+  }
 
-    const res = await fetch(`${API_CONFIG.BASE_URL}/scan`, {
-      headers: { 'Authorization': `Bearer ${API_CONFIG.TOKEN}` }
+  // --- Ship ---
+  async getShip(): Promise<Ship> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/ship`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Ship: ${res.status}`);
+    return res.json();
+  }
+
+  async buildShip(): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/build`, {
+      method: 'POST', headers: this.headers,
     });
+    if (!res.ok) throw new Error(`Build ship: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async moveShip(direction: 'N' | 'S' | 'E' | 'W'): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/move`, {
+      method: 'POST', headers: this.headers,
+      body: JSON.stringify({ direction }),
+    });
+    if (!res.ok) throw new Error(`Move: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async upgradeShip(): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/ship/upgrade`, {
+      method: 'POST', headers: this.headers,
+    });
+    if (!res.ok) throw new Error(`Upgrade ship: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async rescue(): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/rescue`, {
+      method: 'POST', headers: this.headers,
+    });
+    if (!res.ok) throw new Error(`Rescue: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  // --- Resources ---
+  async getResources(): Promise<Resources> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/resources`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Resources: ${res.status}`);
+    return res.json();
+  }
+
+  async getStorage(): Promise<StorageInfo> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/storage`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Storage: ${res.status}`);
+    return res.json();
+  }
+
+  async upgradeStorage(): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/storage/upgrade`, {
+      method: 'POST', headers: this.headers,
+    });
+    if (!res.ok) throw new Error(`Upgrade storage: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  // --- Islands ---
+  async getIslands(): Promise<Island[]> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/islands`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Islands: ${res.status}`);
+    return res.json();
+  }
+
+  // --- Marketplace ---
+  async getMarketOffers(): Promise<MarketOffer[]> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/offers`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Marketplace: ${res.status}`);
+    return res.json();
+  }
+
+  async createOffer(resource: string, quantity: number, unitPrice: number): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/offer`, {
+      method: 'POST', headers: this.headers,
+      body: JSON.stringify({ resource, quantity, unitPrice }),
+    });
+    if (!res.ok) throw new Error(`Create offer: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async buyOffer(offerId: string, quantity: number): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/marketplace/buy`, {
+      method: 'POST', headers: this.headers,
+      body: JSON.stringify({ offerId, quantity }),
+    });
+    if (!res.ok) throw new Error(`Buy offer: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  // --- Taxes ---
+  async getTaxes(): Promise<Tax[]> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/taxes`, { headers: this.headers });
+    if (!res.ok) throw new Error(`Taxes: ${res.status}`);
+    return res.json();
+  }
+
+  async payTax(taxId: string): Promise<any> {
+    const res = await fetch(`${API_CONFIG.BASE_URL}/taxes/pay`, {
+      method: 'POST', headers: this.headers,
+      body: JSON.stringify({ taxId }),
+    });
+    if (!res.ok) throw new Error(`Pay tax: ${res.status} ${await res.text()}`);
     return res.json();
   }
 }
-

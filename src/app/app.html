@@ -1,37 +1,98 @@
-<!-- Header -->
+@if (!game.isAuthenticated()) {
+  <!-- Login Screen -->
+  <div class="login-screen">
+    <h1>🌊 3026</h1>
+    <p class="subtitle">Explorez. Échangez. Découvrez.</p>
+
+    <div class="login-section">
+      <h2>Connexion avec token existant</h2>
+      <div class="input-row">
+        <input type="text" placeholder="Coller votre token ici..." [(ngModel)]="tokenInput" />
+        <button class="btn-action btn-build" (click)="connectWithToken()">Connexion</button>
+      </div>
+    </div>
+
+    <div class="login-section">
+      <h2>Inscription</h2>
+      <button class="btn-action btn-upgrade" (click)="fetchSignupCodes()">1. Obtenir un code</button>
+      <div class="input-col">
+        <input type="text" placeholder="Nom d'équipe (alphanumérique)" [(ngModel)]="registerTeamName" />
+        <input type="email" placeholder="Email" [(ngModel)]="registerEmail" />
+        <input type="text" placeholder="Code d'inscription" [(ngModel)]="registerCode" />
+        <button class="btn-action btn-build" (click)="registerTeam()">2. S'inscrire</button>
+      </div>
+    </div>
+
+    <section class="info-panel" style="margin-top:16px;width:100%;max-width:500px;">
+      <app-log-panel />
+    </section>
+  </div>
+} @else {
+  <!-- Main Game Interface -->
+  <!-- Header -->
 <header class="header">
-  <h1>🗺️ Project 24h</h1>
+  <h1>🌊 3026</h1>
   <div class="status-bar">
-    <span class="status-pos">Position: ({{ game.playerPos().x }}, {{ game.playerPos().y }})</span>
-    <span class="status-hp">❤️ HP: {{ game.hp() }}/{{ game.maxHp() }}</span>
-    <span class="status-gold">💰 Or: {{ game.gold() }}</span>
-    <span class="status-turn">🔄 Tour: {{ game.turn() }}</span>
+    @if (game.player(); as player) {
+      <span class="status-team">🏴 {{ player.teamName }}</span>
+      <span class="status-resource">🪵 {{ player.mainResource }}</span>
+    }
+    @if (game.ship(); as ship) {
+      <span class="status-ship">⛵ Niv.{{ ship.level }} — {{ ship.currentMovePoints }}/{{ ship.maxMovePoints }} mvt</span>
+      <span class="status-pos">📍 ({{ ship.position.x }}, {{ ship.position.y }})</span>
+      @if (ship.isBrokenDown) {
+        <span class="status-broken">🚨 EN PANNE</span>
+      }
+    }
+    <span class="status-gold">💰 {{ game.resources().or }} OR</span>
   </div>
 </header>
 
-<!-- Map Area -->
-<section class="map-section">
-  <app-game-map />
-</section>
-
-<!-- Log Panel -->
-<section class="info-panel">
-  <app-log-panel />
-</section>
-
-<!-- Controls -->
-<app-controls (action)="onAction($event)" />
-
-<!-- Modal -->
-@if (game.modalVisible()) {
-  <div class="modal-overlay" (click)="closeModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <button class="btn-modal-close" (click)="closeModal()">✕</button>
-      <h2 class="modal-title">{{ game.modalTitle() }}</h2>
-      <div class="modal-body" [innerHTML]="game.modalBody()"></div>
+  <!-- Resources bar -->
+  <div class="resources-bar">
+    <div class="res-item">
+      <span class="res-icon">🪵</span>
+      <span>BOISIUM: {{ game.resources().boisium }}</span>
+      <span class="res-cap">/ {{ game.storage().boisium.max }}</span>
+    </div>
+    <div class="res-item">
+      <span class="res-icon">⛏️</span>
+      <span>FERONIUM: {{ game.resources().feronium }}</span>
+      <span class="res-cap">/ {{ game.storage().feronium.max }}</span>
+    </div>
+    <div class="res-item">
+      <span class="res-icon">&#x26CF;&#xFE0F;</span>
+      <span>CHARBONIUM: {{ game.resources().charbonium }}</span>
+      <span class="res-cap">/ {{ game.storage().charbonium.max }}</span>
+    </div>
+    <div class="res-item res-gold">
+      <span class="res-icon">💰</span>
+      <span>OR: {{ game.resources().or }}</span>
     </div>
   </div>
+
+  <!-- Map -->
+  <section class="map-section">
+    <app-game-map />
+  </section>
+
+  <!-- Log -->
+  <section class="info-panel">
+    <app-log-panel />
+  </section>
+
+  <!-- Controls -->
+  <app-controls (action)="onAction($event)" />
+
+  <!-- Modal -->
+  @if (game.modalVisible()) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <button class="btn-modal-close" (click)="closeModal()">✕</button>
+        <h2 class="modal-title">{{ game.modalTitle() }}</h2>
+        <div class="modal-body" [innerHTML]="game.modalBody()"></div>
+      </div>
+    </div>
+  }
 }
-
-
 

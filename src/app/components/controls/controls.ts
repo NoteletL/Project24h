@@ -10,27 +10,20 @@ export class ControlsComponent {
   readonly action = output<string>();
 
   private keyMap: Record<string, string> = {
-    'ArrowUp': 'up',
-    'ArrowDown': 'down',
-    'ArrowLeft': 'left',
-    'ArrowRight': 'right',
-    'z': 'up', 'Z': 'up',
-    's': 'down', 'S': 'down',
-    'q': 'left', 'Q': 'left',
-    'd': 'right', 'D': 'right',
-    'e': 'interact', 'E': 'interact',
-    'u': 'upgrade', 'U': 'upgrade',
-    'i': 'inventory', 'I': 'inventory',
-    'p': 'status', 'P': 'status',
-    'r': 'scan', 'R': 'scan',
-    'a': 'attack', 'A': 'attack',
-    ' ': 'wait',
+    'ArrowUp': 'N', 'ArrowDown': 'S', 'ArrowLeft': 'W', 'ArrowRight': 'E',
+    'z': 'N', 'Z': 'N', 's': 'S', 'S': 'S',
+    'q': 'W', 'Q': 'W', 'd': 'E', 'D': 'E',
+    'b': 'build', 'B': 'build',
+    'u': 'upgrade-ship', 'U': 'upgrade-ship',
+    'r': 'refresh', 'R': 'refresh',
+    't': 'show-taxes', 'T': 'show-taxes',
+    'm': 'show-market', 'M': 'show-market',
+    'i': 'show-islands', 'I': 'show-islands',
   };
 
   @HostListener('document:keydown', ['$event'])
   onKeydown(event: KeyboardEvent) {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-
     const action = this.keyMap[event.key];
     if (action) {
       event.preventDefault();
@@ -42,4 +35,3 @@ export class ControlsComponent {
     this.action.emit(action);
   }
 }
-

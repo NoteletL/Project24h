@@ -23,9 +23,9 @@
 }
 
 .btn-nav {
-  width: 52px;
+  width: 56px;
   height: 52px;
-  font-size: 1.4rem;
+  font-size: 1rem;
   background: var(--bg-tertiary);
   border: 2px solid var(--accent);
   border-radius: 8px;
@@ -52,7 +52,6 @@
 .btn-center {
   background: var(--accent) !important;
   border-color: var(--accent-light) !important;
-  font-size: 1.1rem;
 }
 
 /* Action Buttons */
@@ -60,13 +59,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: 400px;
+  max-width: 500px;
   justify-content: center;
 }
 
 .btn-action {
-  padding: 10px 18px;
-  font-size: 0.9rem;
+  padding: 10px 16px;
+  font-size: 0.85rem;
   font-family: inherit;
   background: var(--bg-tertiary);
   border: 2px solid var(--accent);
@@ -87,30 +86,32 @@
   transform: translateY(0) scale(0.96);
 }
 
-.btn-interact { border-color: var(--green); }
-.btn-interact:hover { background: rgba(78, 204, 163, 0.2); box-shadow: 0 0 15px rgba(78, 204, 163, 0.3); }
+.btn-build { border-color: var(--green); }
+.btn-build:hover { background: rgba(78, 204, 163, 0.2); }
 
 .btn-upgrade { border-color: var(--gold); }
-.btn-upgrade:hover { background: rgba(240, 192, 64, 0.15); box-shadow: 0 0 15px rgba(240, 192, 64, 0.3); }
+.btn-upgrade:hover { background: rgba(240, 192, 64, 0.15); }
 
-.btn-inventory { border-color: var(--blue); }
-.btn-inventory:hover { background: rgba(56, 182, 255, 0.15); box-shadow: 0 0 15px rgba(56, 182, 255, 0.3); }
+.btn-storage { border-color: var(--blue); }
+.btn-storage:hover { background: rgba(56, 182, 255, 0.15); }
 
-.btn-status { border-color: var(--accent-light); }
-.btn-status:hover { background: rgba(83, 52, 131, 0.3); box-shadow: 0 0 15px rgba(83, 52, 131, 0.4); }
+.btn-rescue { border-color: var(--red); }
+.btn-rescue:hover { background: rgba(233, 69, 96, 0.2); }
 
-.btn-scan { border-color: var(--blue); }
-.btn-scan:hover { background: rgba(56, 182, 255, 0.15); box-shadow: 0 0 15px rgba(56, 182, 255, 0.3); }
+.btn-islands { border-color: var(--green); }
+.btn-islands:hover { background: rgba(78, 204, 163, 0.15); }
 
-.btn-attack { border-color: var(--red); }
-.btn-attack:hover { background: rgba(233, 69, 96, 0.2); box-shadow: 0 0 15px rgba(233, 69, 96, 0.3); }
+.btn-market { border-color: var(--accent-light); }
+.btn-market:hover { background: rgba(83, 52, 131, 0.3); }
+
+.btn-taxes { border-color: var(--gold); }
+.btn-taxes:hover { background: rgba(240, 192, 64, 0.15); }
 
 @media (max-width: 900px) {
   .control-panel { gap: 20px; padding: 8px 12px; }
-  .btn-action { padding: 8px 12px; font-size: 0.8rem; }
+  .btn-action { padding: 8px 10px; font-size: 0.75rem; }
 }
 
 @media (max-width: 600px) {
   .control-panel { flex-direction: column; gap: 12px; }
 }
-

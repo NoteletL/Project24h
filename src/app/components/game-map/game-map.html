@@ -1,17 +1,13 @@
-<div
-  class="map-container"
-  [style.grid-template-columns]="'repeat(' + cols() + ', var(--tile-size))'"
-  [style.grid-template-rows]="'repeat(' + rows() + ', var(--tile-size))'">
-  @for (row of grid(); track $index; let y = $index) {
-    @for (tile of row; track $index; let x = $index) {
-      <div
-        class="tile"
-        [class.tile-player]="isPlayer(x, y)"
-        [class]="'tile tile-' + (isPlayer(x, y) ? 'player' : tile.type)"
-        [title]="(isPlayer(x, y) ? 'Joueur' : tile.type) + ' (' + x + ', ' + y + ')'">
-        {{ isPlayer(x, y) ? getPlayerIcon() : getTileIcon(tile.type) }}
+<div class="map-container"
+  [style.grid-template-columns]="'repeat(' + gridCols + ', var(--tile-size))'"
+  [style.grid-template-rows]="'repeat(' + gridRows + ', var(--tile-size))'">
+  @for (row of gridArray; track $index; let y = $index) {
+    @for (cell of row; track $index; let x = $index) {
+      <div class="tile"
+        [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '') + (cell?.risk ? ' tile-risk' : '')"
+        [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.islandId ? ' ile:' + cell.islandId : '') + (cell.risk ? ' ⚠RISQUE' : '') : 'Inexploré'">
+        {{ getCellIcon(cell) }}
       </div>
     }
   }
 </div>
-
