@@ -36,11 +36,19 @@ export interface BrokerOffer {
   ownerName?:       string;
 }
 
+/** Offre enrichie d'un horodatage de réception pour le HUD et le localStorage */
+export interface StoredOffer extends BrokerOffer {
+  receivedAt: string; // ISO 8601
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
-const PROXY_URL   = 'ws://localhost:3001';
-const MAX_ENTRIES = 150;
-let   _idSeq      = 0;
+const PROXY_URL          = 'ws://localhost:3001';
+const MAX_ENTRIES        = 150;
+const MAX_STORED_OFFERS  = 30;
+const RECONNECT_DELAY_MS = 5_000;
+const STORAGE_KEY_OFFERS = '3026_broker_offers';
+let   _idSeq             = 0;
 
 @Injectable({ providedIn: 'root' })
 export class BrokerService implements OnDestroy {
@@ -55,7 +63,18 @@ export class BrokerService implements OnDestroy {
   /** Dernier message broker (type 'message') — utile pour le bot réactif */
   readonly latestMessage = signal<BrokerLogEntry | null>(null);
 
+  /** Offres marketplace reçues via broker, persistées dans localStorage */
+  readonly liveOffers  = signal<StoredOffer[]>(this.loadStoredOffers());
+  /** Date de la dernière offre reçue */
+  readonly lastOfferAt = signal<Date | null>(this.initLastOfferAt());
+  /** Vrai pendant 3 s après la réception d'une nouvelle offre (pour l'animation HUD) */
+  readonly hasNewOffer = signal(false);
+
   private ws: WebSocket | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Vrai si la déconnexion est volontaire (pas de reconnexion auto) */
+  private manualDisconnect = false;
+  private newOfferTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Connexion ──────────────────────────────────────────────────────────────
 
@@ -75,9 +94,21 @@ export class BrokerService implements OnDestroy {
     this.connectWith(username, password, playerId);
   }
 
+  /**
+   * Connexion automatique si les credentials sont disponibles et qu'on n'est pas
+   * déjà connecté. Appelée au login et après chaque refresh complet.
+   */
+  autoConnect(): void {
+    if (this.connected() || this.connecting()) return;
+    if (!this.game.playerDetails()) return;
+    this.manualDisconnect = false;
+    this.connect();
+  }
+
   /** Variante avec credentials explicites (pour tests). */
   connectWith(username: string, password: string, playerId: string): void {
     if (this.ws) this.disconnect();
+    this.manualDisconnect = false;
 
     this.connecting.set(true);
     this.error.set('');
@@ -96,6 +127,10 @@ export class BrokerService implements OnDestroy {
       this.connecting.set(false);
       this.status.set('Connexion WebSocket fermée');
       this.pushLog({ type: 'status', status: 'disconnected', message: 'Connexion WebSocket fermée', timestamp: new Date().toISOString() });
+      // Reconnexion automatique si non-volontaire et utilisateur toujours connecté
+      if (!this.manualDisconnect && this.game.isAuthenticated()) {
+        this.scheduleReconnect();
+      }
     };
 
     this.ws.onerror = () => {
@@ -105,6 +140,8 @@ export class BrokerService implements OnDestroy {
   }
 
   disconnect(): void {
+    this.manualDisconnect = true;
+    this.clearReconnectTimer();
     if (this.ws) {
       // Envoyer un message de déconnexion propre avant de fermer
       if (this.ws.readyState === WebSocket.OPEN) {
@@ -186,6 +223,66 @@ export class BrokerService implements OnDestroy {
       const updated = [entry, ...list];
       return updated.length > MAX_ENTRIES ? updated.slice(0, MAX_ENTRIES) : updated;
     });
+
+    // Persister l'offre dans localStorage et mettre à jour le HUD
+    if (offer) this.addLiveOffer(offer);
+  }
+
+  // ── Persistence des offres (localStorage) ────────────────────────────────
+
+  private addLiveOffer(offer: BrokerOffer): void {
+    const stored: StoredOffer = { ...offer, receivedAt: new Date().toISOString() };
+    this.liveOffers.update(list => {
+      // Dédupliquer par id d'offre
+      const next = [stored, ...list.filter(o => o.id !== offer.id)]
+        .slice(0, MAX_STORED_OFFERS);
+      this.saveOffers(next);
+      return next;
+    });
+    this.lastOfferAt.set(new Date());
+    // Indicateur visuel "nouvelle offre" pendant 3 s
+    if (this.newOfferTimer) clearTimeout(this.newOfferTimer);
+    this.hasNewOffer.set(true);
+    this.newOfferTimer = setTimeout(() => this.hasNewOffer.set(false), 3000);
+  }
+
+  private saveOffers(offers: StoredOffer[]): void {
+    try { localStorage.setItem(STORAGE_KEY_OFFERS, JSON.stringify(offers)); } catch { /* quota */ }
+  }
+
+  private loadStoredOffers(): StoredOffer[] {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_OFFERS);
+      return raw ? (JSON.parse(raw) as StoredOffer[]) : [];
+    } catch { return []; }
+  }
+
+  private initLastOfferAt(): Date | null {
+    const offers = this.loadStoredOffers();
+    return offers.length > 0 ? new Date(offers[0].receivedAt) : null;
+  }
+
+  // ── Reconnexion automatique ───────────────────────────────────────────────
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.connected() && !this.connecting() && this.game.isAuthenticated()) {
+        this.game.log('📡 Reconnexion broker…', 'info');
+        this.connect();
+      }
+    }, RECONNECT_DELAY_MS);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+  }
+
+  ngOnDestroy(): void {
+    this.clearReconnectTimer();
+    if (this.newOfferTimer) clearTimeout(this.newOfferTimer);
+    this.disconnect();
   }
 
   private buildLabel(msg: BrokerRawMessage, offer?: BrokerOffer): string {
@@ -237,8 +334,4 @@ export class BrokerService implements OnDestroy {
     return undefined;
   }
 
-  ngOnDestroy(): void { this.disconnect(); }
 }
-
-
-

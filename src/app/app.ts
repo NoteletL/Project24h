@@ -11,6 +11,7 @@ import { ApiService, API_CONFIG, Direction, Ship } from './services/api.service'
 import { GameStateService } from './services/game-state.service';
 import { MapService } from './services/map.service';
 import { BotService } from './services/bot.service';
+import { BrokerService } from './services/broker.service';
 import { PriceHistoryService } from './services/price-history.service';
 import { ShipTrackerService } from './services/ship-tracker.service';
 import { RecapPanelComponent } from './components/recap-panel/recap-panel';
@@ -36,7 +37,8 @@ export class App implements OnInit {
   private api = inject(ApiService);
   private mapService = inject(MapService);
   readonly game = inject(GameStateService);
-  private readonly bot = inject(BotService);
+  private readonly bot         = inject(BotService);
+  private readonly broker      = inject(BrokerService);
   private readonly priceHistory = inject(PriceHistoryService);
   readonly tracker = inject(ShipTrackerService);
 
@@ -68,6 +70,7 @@ export class App implements OnInit {
       this.game.isAuthenticated.set(true);
       this.game.log('Token restauré depuis le stockage local.', 'info');
       await Promise.allSettled([this.refreshAll(), this.loadMap()]);
+      this.broker.autoConnect();
     }
   }
 
@@ -107,6 +110,7 @@ export class App implements OnInit {
     this.game.isAuthenticated.set(true);
     this.game.log('Connecté.', 'action');
     await Promise.allSettled([this.refreshAll(), this.loadMap()]);
+    this.broker.autoConnect();
   }
 
   logout() {
@@ -116,6 +120,7 @@ export class App implements OnInit {
     this.game.isAuthenticated.set(false);
     this.game.log('Déconnecté.', 'info');
     this.bot.stop();
+    this.broker.disconnect();
     this.priceHistory.stop();
     this.tracker.stop();
   }
@@ -353,6 +358,8 @@ export class App implements OnInit {
     }
     // Démarrer le suivi automatique du bateau
     this.tracker.start();
+    // Connexion automatique au broker si pas encore connecté
+    this.broker.autoConnect();
     this.game.log('Données mises à jour.', 'info');
   }
 

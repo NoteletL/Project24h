@@ -18,7 +18,31 @@
         @if (inDanger()) {
           <span class="danger-badge" aria-hidden="true">⚠️ Danger</span>
         }
+        @if (gpsTarget()) {
+          <span class="gps-active-badge" aria-live="polite">
+            📍 {{ gpsResult()?.totalMoves ?? 0 }} mvt → {{ gpsTarget()!.name }}
+          </span>
+        }
       </span>
+
+      <!-- Barre d'énergie -->
+      @if (ship.level?.maxMovement) {
+        <div class="energy-bar-wrap"
+             role="meter"
+             [attr.aria-valuenow]="ship.availableMove"
+             [attr.aria-valuemin]="0"
+             [attr.aria-valuemax]="ship.level.maxMovement"
+             [attr.aria-label]="'Énergie : ' + ship.availableMove + ' / ' + ship.level.maxMovement">
+          <div class="energy-track">
+            <div class="energy-fill"
+                 [style.width]="energyPercent() + '%'"
+                 [class.energy-low]="energyPercent() < 25"
+                 [class.energy-medium]="energyPercent() >= 25 && energyPercent() < 60">
+            </div>
+          </div>
+          <span class="energy-label" aria-hidden="true">⚡ {{ ship.availableMove }}/{{ ship.level.maxMovement }}</span>
+        </div>
+      }
     }
 
     <div class="zoom-controls">
@@ -39,6 +63,20 @@
       🗺 Zones
       @if (knownZones().length) {
         <span class="zones-count" aria-hidden="true">({{ knownZones().length }})</span>
+      }
+    </button>
+
+    <!-- GPS Navigation -->
+    <button
+      class="btn-gps"
+      (click)="showGpsPanel.set(!showGpsPanel())"
+      [class.btn-gps--on]="showGpsPanel() || !!gpsTarget()"
+      [attr.aria-pressed]="showGpsPanel()"
+      [attr.aria-label]="showGpsPanel() ? 'Fermer la navigation GPS' : 'Ouvrir la navigation GPS'"
+      title="Navigation GPS — chemin vers une île">
+      📍 GPS
+      @if (gpsTarget()) {
+        <span class="gps-btn-dist" aria-hidden="true">{{ gpsResult()?.totalMoves ?? '…' }}</span>
       }
     </button>
 
@@ -204,6 +242,163 @@
 
     <!-- Ciel / horizon étoilé (mode POV uniquement) -->
     <div class="pov-sky" aria-hidden="true"></div>
+
+    <!-- ── Panneau GPS ────────────────────────────────────────────────────── -->
+    @if (showGpsPanel()) {
+      <aside class="gps-panel"
+             role="dialog"
+             aria-modal="false"
+             aria-label="Navigation GPS — sélectionnez une île cible">
+
+        <div class="gps-panel-header">
+          <span class="gps-panel-title">📍 Navigation GPS</span>
+          <button class="gps-close"
+                  (click)="clearGps()"
+                  aria-label="Fermer le GPS et effacer la cible">✕</button>
+        </div>
+
+        <!-- Liste des îles connues triée par distance -->
+        <div class="gps-island-list" role="list" aria-label="Îles connues, triées par distance">
+          @if (islandTargets().length === 0) {
+            <p class="gps-empty">Aucune île détectée sur la carte</p>
+          }
+          @for (island of islandTargets(); track island.name) {
+            <button
+              class="gps-island-item"
+              role="listitem"
+              [class.gps-island-selected]="gpsTarget()?.name === island.name"
+              [attr.aria-pressed]="gpsTarget()?.name === island.name"
+              [attr.aria-label]="island.name + ' — ' + island.distance + ' cases'"
+              (click)="selectGpsTarget(island)">
+              <span class="gps-island-state" aria-hidden="true">
+                @if (island.state === 'KNOWN') { ✅ }
+                @else if (island.state === 'DISCOVERED') { 👁️ }
+                @else { ❓ }
+              </span>
+              <span class="gps-island-name">{{ island.name }}</span>
+              <span class="gps-island-dist">{{ island.distance }}c</span>
+            </button>
+          }
+        </div>
+
+        <!-- Route vers la cible -->
+        @let gps = gpsResult();
+        @let target = gpsTarget();
+        @if (target) {
+          <div class="gps-route" aria-live="polite" aria-atomic="true">
+
+            @if (!gps) {
+              <p class="gps-arrived">⚓ Vous êtes déjà sur <strong>{{ target.name }}</strong> !</p>
+            } @else {
+
+              <!-- En-tête : destination + total mouvements -->
+              <div class="gps-route-header">
+                <span class="gps-route-dest">{{ target.name }}</span>
+                <span class="gps-route-total">{{ gps.totalMoves }} mvt</span>
+              </div>
+
+              <!-- Statut énergie -->
+              @if (!gps.energySufficient) {
+                @if (gps.canReach) {
+                  <div class="gps-energy-warn">
+                    ⚡ {{ gps.rechargeStops }} arrêt{{ gps.rechargeStops > 1 ? 's' : '' }} recharge
+                  </div>
+                } @else {
+                  <div class="gps-energy-blocked">
+                    🔴 Aucune recharge accessible — trajet partiel
+                  </div>
+                }
+              }
+
+              <!-- Segments de la route -->
+              @for (seg of gps.segments; track $index; let i = $index) {
+
+                <!-- Label du tronçon -->
+                @if (seg.isRecharge) {
+                  <div class="gps-seg-label recharge">
+                    🏝️ Recharge → <strong>{{ seg.toName }}</strong>
+                    <span class="gps-seg-moves">{{ seg.movesNeeded }}c</span>
+                  </div>
+                } @else if (i > 0) {
+                  <div class="gps-seg-label final">
+                    🎯 {{ target.name }}
+                    <span class="gps-seg-moves">{{ seg.movesNeeded }}c</span>
+                  </div>
+                }
+
+                <!-- Étapes du tronçon -->
+                <div class="gps-steps" role="list"
+                     [attr.aria-label]="'Tronçon ' + (i + 1) + ' : ' + seg.steps.map(s => s.count + ' fois ' + s.dir).join(', ')">
+                  @for (step of seg.steps; track $index) {
+                    <span class="gps-step" role="listitem"
+                          [attr.aria-label]="step.count + ' fois ' + step.dir">
+                      <span class="gps-step-emoji" aria-hidden="true">{{ step.emoji }}</span>
+                      <span class="gps-step-info">
+                        <span class="gps-step-dir">{{ step.dir }}</span>
+                        <span class="gps-step-count">×{{ step.count }}</span>
+                      </span>
+                    </span>
+                  }
+                </div>
+
+                <!-- Badge recharge complète entre deux tronçons -->
+                @if (seg.isRecharge) {
+                  <div class="gps-recharge-badge" aria-hidden="true">⚡ Recharge complète ici</div>
+                }
+              }
+
+              <!-- Note si trajet partiel -->
+              @if (!gps.canReach) {
+                <p class="gps-partial-note">⚠️ Portée maximale — recharge requise</p>
+              }
+
+              <!-- Résumé vocal -->
+              <p class="gps-summary" aria-label="Résumé de la navigation">
+                @for (seg of gps.segments; track $index; let i = $index) {
+                  @if (i > 0) { → }
+                  {{ seg.steps.map(s => s.count + '× ' + s.dir).join(', ') }}
+                }
+              </p>
+            }
+
+          </div>
+        }
+
+      </aside>
+    }
+
+    <!-- ── HUD Marché Live (broker) ─────────────────────────────────────── -->
+    @let offers = recentBrokerOffers();
+    @if (offers.length > 0 || broker.liveOffers().length > 0) {
+      <aside class="broker-hud"
+             [class.broker-hud--new]="broker.hasNewOffer()"
+             aria-label="Marché en temps réel — dernières offres">
+        <div class="broker-hud-header">
+          <span class="broker-hud-title">📡 Marché Live</span>
+          <span class="broker-hud-dot"
+                [class.active]="broker.connected()"
+                [title]="broker.connected() ? 'Broker connecté' : 'Broker déconnecté'"
+                aria-hidden="true"></span>
+        </div>
+
+        @if (offers.length === 0) {
+          <div class="broker-hud-empty">Aucune offre récente</div>
+        } @else {
+          @for (offer of offers; track offer.id) {
+            <div class="broker-offer-row">
+              <span class="broker-res">{{ brokerResourceIcon(offer.resourceType) }} {{ offer.resourceType | slice:0:4 }}</span>
+              <span class="broker-qty">×{{ offer.quantityIn }}</span>
+              <span class="broker-price">💰 {{ offer.pricePerResource }}/u</span>
+            </div>
+          }
+        }
+
+        @let lastAt = broker.lastOfferAt();
+        @if (lastAt) {
+          <div class="broker-hud-time">{{ fmtBrokerTime(lastAt) }}</div>
+        }
+      </aside>
+    }
 
   </div><!-- fin .pov-perspective -->
 

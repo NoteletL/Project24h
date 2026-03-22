@@ -795,6 +795,468 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   HUD BROKER — Marché Live
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.broker-hud {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  min-width: 152px;
+  max-width: 190px;
+  background: rgba(8, 8, 20, 0.90);
+  border: 1px solid rgba(78, 204, 163, 0.28);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: border-color 0.4s;
+}
+
+/* Flash doré à la réception d'une nouvelle offre */
+.broker-hud--new {
+  border-color: var(--gold);
+  animation: broker-new-flash 3s ease-out forwards;
+}
+
+@keyframes broker-new-flash {
+  0%   { box-shadow: 0 0 14px rgba(240, 192, 64, 0.55); }
+  80%  { box-shadow: 0 0 6px  rgba(240, 192, 64, 0.15); }
+  100% { box-shadow: none; }
+}
+
+/* En-tête du HUD */
+.broker-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  gap: 6px;
+}
+
+.broker-hud-title {
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+}
+
+/* Voyant de connexion */
+.broker-hud-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.broker-hud-dot.active {
+  background: var(--green);
+  animation: dot-broker-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-broker-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* Ligne d'offre */
+.broker-offer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.broker-offer-row:last-of-type { border-bottom: none; }
+
+.broker-res {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.66rem;
+  flex-shrink: 0;
+}
+
+.broker-qty {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  flex: 1;
+  text-align: center;
+}
+
+.broker-price {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.66rem;
+  flex-shrink: 0;
+}
+
+.broker-hud-empty {
+  color: var(--text-muted);
+  font-size: 0.63rem;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+.broker-hud-time {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BARRE D'ÉNERGIE — toolbar
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.energy-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.energy-track {
+  width: 72px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.energy-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--green);
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.energy-fill.energy-medium { background: var(--gold); }
+.energy-fill.energy-low    {
+  background: var(--red);
+  animation: energy-low-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes energy-low-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.energy-label {
+  font-size: 0.63rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* En plein écran : barre d'énergie intégrée au HUD */
+.is-fullscreen .energy-bar-wrap { /* identique, déjà dans le HUD */ }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GPS — segments énergie + statut recharge
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.gps-energy-warn {
+  font-size: 0.66rem;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 5px;
+  padding: 3px 6px;
+  background: rgba(240, 192, 64, 0.10);
+  border-left: 2px solid var(--gold);
+  border-radius: 0 4px 4px 0;
+}
+
+.gps-energy-blocked {
+  font-size: 0.66rem;
+  color: var(--red);
+  font-weight: 600;
+  margin-bottom: 5px;
+  padding: 3px 6px;
+  background: rgba(233, 69, 96, 0.10);
+  border-left: 2px solid var(--red);
+  border-radius: 0 4px 4px 0;
+}
+
+.gps-seg-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.64rem;
+  padding: 3px 0 2px;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.gps-seg-label.recharge { color: var(--gold); }
+.gps-seg-label.final    { color: var(--green); }
+
+.gps-seg-moves {
+  font-weight: 700;
+  color: var(--blue);
+  font-size: 0.60rem;
+}
+
+.gps-recharge-badge {
+  font-size: 0.60rem;
+  color: var(--gold);
+  padding: 2px 6px;
+  margin: 3px 0;
+  background: rgba(240, 192, 64, 0.08);
+  border: 1px dashed rgba(240, 192, 64, 0.30);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.gps-partial-note {
+  font-size: 0.62rem;
+  color: var(--red);
+  margin: 4px 0 0;
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TUILES GPS — chemin et destination
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.tile-gps-path {
+  background-color: rgba(56, 182, 255, 0.18) !important;
+  border-color: rgba(56, 182, 255, 0.40) !important;
+  box-shadow: inset 0 0 6px rgba(56, 182, 255, 0.20);
+}
+
+.tile-gps-target {
+  background-color: rgba(78, 204, 163, 0.28) !important;
+  border-color: var(--green) !important;
+  box-shadow: inset 0 0 14px rgba(78, 204, 163, 0.55);
+  animation: gps-target-pulse 1.4s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes gps-target-pulse {
+  0%, 100% { box-shadow: inset 0 0 10px rgba(78, 204, 163, 0.40); }
+  50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.85); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BOUTON GPS — toolbar
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.btn-gps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.btn-gps:hover         { border-color: var(--green); color: var(--text-primary); }
+.btn-gps--on           { border-color: var(--green); color: var(--green); background: rgba(78, 204, 163, 0.10); }
+.btn-gps:focus-visible  { outline: 3px solid var(--green); outline-offset: 2px; }
+
+.gps-btn-dist {
+  background: var(--blue);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 5px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* Badge dans map-coords */
+.gps-active-badge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(78, 204, 163, 0.15);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PANNEAU GPS — flottant sur la carte
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.gps-panel {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 15;
+  width: 210px;
+  max-height: calc(100% - 24px);
+  background: rgba(8, 8, 22, 0.94);
+  border: 1px solid rgba(78, 204, 163, 0.35);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  pointer-events: all; /* panel est interactif */
+}
+
+.gps-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.gps-panel-title {
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.73rem;
+  letter-spacing: 0.02em;
+}
+
+.gps-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+.gps-close:hover        { color: var(--red); }
+.gps-close:focus-visible { outline: 2px solid var(--green); }
+
+/* ── Liste des îles ─────────────────────────────────────────────────────── */
+
+.gps-island-list {
+  overflow-y: auto;
+  max-height: 200px;
+  padding: 4px 0;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.gps-island-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.1s;
+}
+.gps-island-item:hover         { background: rgba(78, 204, 163, 0.08); color: var(--text-primary); }
+.gps-island-item:focus-visible  { outline: 2px solid var(--green); outline-offset: -2px; }
+.gps-island-selected            { background: rgba(78, 204, 163, 0.13) !important; color: var(--green) !important; }
+
+.gps-island-state { font-size: 0.65rem; flex-shrink: 0; }
+.gps-island-name  { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gps-island-dist  { color: var(--blue); font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
+
+.gps-empty {
+  padding: 8px 12px;
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  font-style: italic;
+}
+
+/* ── Route calculée ─────────────────────────────────────────────────────── */
+
+.gps-route {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.gps-arrived {
+  font-size: 0.7rem;
+  color: var(--green);
+  font-weight: 600;
+  margin: 0;
+}
+
+.gps-route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.gps-route-dest {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.gps-route-total {
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 0.68rem;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* Chips des étapes */
+.gps-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.gps-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(56, 182, 255, 0.10);
+  border: 1px solid rgba(56, 182, 255, 0.25);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+}
+
+.gps-step-emoji { font-size: 0.8rem; line-height: 1; }
+.gps-step-info  { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.gps-step-dir   { color: var(--text-secondary); font-weight: 700; font-size: 0.58rem; line-height: 1; }
+.gps-step-count { color: var(--blue); font-weight: 700; font-size: 0.62rem; line-height: 1; }
+
+/* Résumé vocal */
+.gps-summary {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    ACCESSIBILITÉ — réduction de mouvement
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -809,7 +1271,10 @@
   .pov-mode.move-S .map-viewport,
   .pov-mode.move-E .map-viewport,
   .pov-mode.move-W .map-viewport,
-  .danger-badge {
+  .danger-badge,
+  .tile-gps-target,
+  .broker-hud--new,
+  .broker-hud-dot.active {
     animation: none !important;
     transition: none !important;
   }

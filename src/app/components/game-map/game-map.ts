@@ -1,6 +1,8 @@
 import { Component, inject, signal, computed, effect, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { GameStateService } from '../../services/game-state.service';
 import { AudioService } from '../../services/audio.service';
+import { BrokerService, StoredOffer } from '../../services/broker.service';
 import { Cell } from '../../models/map.model';
 
 // Dimensions par défaut (mode fenêtré)
@@ -14,15 +16,60 @@ const ZOOM_MIN         = 7;
 const ZOOM_MAX         = 300;
 const ZOOM_STEP        = 10;
 
+// ─── Interfaces GPS ──────────────────────────────────────────────────────────
+
+/** Île cible sélectionnée pour la navigation GPS */
+export interface IslandTarget {
+  name:          string;
+  x:             number;
+  y:             number;
+  state:         'KNOWN' | 'DISCOVERED' | null;
+  distance:      number;
+  bonusQuotient: number;
+}
+
+/** Étape compressée (même direction consécutive) */
+export interface GpsStep {
+  dir:   string;
+  count: number;
+  emoji: string;
+}
+
+/** Tronçon de route entre deux points */
+export interface GpsSegment {
+  steps:       GpsStep[];
+  waypoints:   Set<string>;
+  movesNeeded: number;
+  /** Vrai si ce tronçon mène à une île de recharge (pas la destination finale) */
+  isRecharge:  boolean;
+  toName?:     string;  // nom de l'île destination de ce tronçon
+}
+
+/** Résultat complet du calcul de chemin avec gestion d'énergie */
+export interface GpsResult {
+  segments:         GpsSegment[];
+  allWaypoints:     Set<string>;  // union de tous les waypoints
+  totalMoves:       number;
+  targetX:          number;
+  targetY:          number;
+  rechargeStops:    number;
+  /** L'énergie actuelle suffit pour un trajet direct */
+  energySufficient: boolean;
+  /** Atteignable avec des arrêts recharge sur des îles KNOWN */
+  canReach:         boolean;
+}
+
 @Component({
   selector: 'app-game-map',
   standalone: true,
+  imports: [SlicePipe],
   templateUrl: './game-map.html',
   styleUrl: './game-map.css',
 })
 export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly game  = inject(GameStateService);
   readonly audio = inject(AudioService);
+  readonly broker = inject(BrokerService);
 
   @ViewChild('viewport')   viewportRef!: ElementRef<HTMLDivElement>;
   @ViewChild('mapWrapper') wrapperRef!:  ElementRef<HTMLDivElement>;
@@ -35,9 +82,14 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly povMode      = signal(false);
   readonly lastMoveDir  = signal<'N' | 'S' | 'E' | 'W' | null>(null);
 
-  readonly hoveredCell = signal<Cell | null>(null);
-  readonly tooltipX    = signal(0);
-  readonly tooltipY    = signal(0);
+  readonly hoveredCell  = signal<Cell | null>(null);
+  readonly tooltipX     = signal(0);
+  readonly tooltipY     = signal(0);
+
+  /** Île cible GPS sélectionnée */
+  readonly gpsTarget    = signal<IslandTarget | null>(null);
+  /** Panneau GPS ouvert/fermé */
+  readonly showGpsPanel = signal(false);
 
   /** Dimensions réelles du viewport mesurées par ResizeObserver */
   readonly viewportW = signal(DEFAULT_W);
@@ -63,6 +115,13 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const pos = this.game.ship()?.currentPosition;
     if (!pos) return false;
     return pos.zone > 0 || (pos.ships?.length ?? 0) > 0;
+  });
+
+  /** Pourcentage d'énergie restante du navire (0–100). */
+  readonly energyPercent = computed<number>(() => {
+    const ship = this.game.ship();
+    if (!ship?.level?.maxMovement || ship.availableMove === undefined) return 0;
+    return Math.min(100, Math.round((ship.availableMove / ship.level.maxMovement) * 100));
   });
 
   constructor() {
@@ -153,6 +212,65 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
       m.set(di.island.name, di.islandState as 'KNOWN' | 'DISCOVERED');
     }
     return m;
+  });
+
+  /**
+   * Liste de toutes les îles visibles sur la carte (depuis knownCells),
+   * avec la cellule la plus proche du navire pour chaque île, triée par distance.
+   */
+  readonly islandTargets = computed<IslandTarget[]>(() => {
+    const ship = this.game.ship()?.currentPosition;
+    const sx = ship?.x ?? 0;
+    const sy = ship?.y ?? 0;
+    const discoveredMap = this.discoveredIslandMap();
+    const byName = new Map<string, IslandTarget>();
+
+    for (const cell of this.game.knownCells().values()) {
+      if (!cell.island) continue;
+      const dist = Math.max(Math.abs(cell.x - sx), Math.abs(cell.y - sy));
+      const existing = byName.get(cell.island.name);
+      if (!existing || dist < existing.distance) {
+        byName.set(cell.island.name, {
+          name:          cell.island.name,
+          x:             cell.x,
+          y:             cell.y,
+          state:         discoveredMap.get(cell.island.name) ?? null,
+          distance:      dist,
+          bonusQuotient: cell.island.bonusQuotient,
+        });
+      }
+    }
+    return Array.from(byName.values()).sort((a, b) => a.distance - b.distance);
+  });
+
+  /** Chemin GPS calculé vers la cible, avec gestion des arrêts recharge. */
+  readonly gpsResult = computed<GpsResult | null>(() => {
+    const target = this.gpsTarget();
+    const ship   = this.game.ship();
+    if (!target || !ship?.currentPosition) return null;
+    const pos = ship.currentPosition;
+    if (pos.x === target.x && pos.y === target.y) return null;
+
+    const energy    = ship.availableMove ?? 0;
+    const maxEnergy = ship.level?.maxMovement ?? energy;
+
+    // Seules les îles KNOWN permettent une recharge
+    const rechargeIslands = this.islandTargets().filter(i => i.state === 'KNOWN');
+
+    return this.computeEnergyAwarePath(
+      pos.x, pos.y, target.x, target.y, energy, maxEnergy, rechargeIslands
+    );
+  });
+
+  /** Set de "x,y" de toutes les cases du chemin (pour coloration des tuiles). */
+  readonly gpsWaypointSet = computed<Set<string>>(
+    () => this.gpsResult()?.allWaypoints ?? new Set()
+  );
+
+  /** Clé "x,y" de la case cible finale. */
+  readonly gpsTargetKey = computed<string | null>(() => {
+    const r = this.gpsResult();
+    return r ? `${r.targetX},${r.targetY}` : null;
   });
 
   get gridArray(): (Cell | null)[][] {
@@ -252,15 +370,19 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.discoveredIslandMap().get(cell.island.name) ?? null;
   }
 
-  /** Classe CSS complète d'une tuile (type terrain + navire + état île). */
+  /** Classe CSS complète d'une tuile (type terrain + navire + état île + GPS). */
   getTileClass(cell: Cell | null): string {
     let cls = 'tile ' + this.getCellClass(cell);
     if (this.isShipHere(cell)) cls += ' tile-ship';
     if (cell?.island) {
       const s = this.getIslandState(cell);
-      if (s === 'KNOWN')       cls += ' tile-island-known';
+      if (s === 'KNOWN')           cls += ' tile-island-known';
       else if (s === 'DISCOVERED') cls += ' tile-island-discovered';
     }
+    if (cell && this.gpsTargetKey() === `${cell.x},${cell.y}`)
+      cls += ' tile-gps-target';
+    else if (cell && this.gpsWaypointSet().has(`${cell.x},${cell.y}`))
+      cls += ' tile-gps-path';
     return cls;
   }
 
@@ -299,6 +421,172 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onViewportMouseLeave(): void { this.hoveredCell.set(null); }
+
+  // ── GPS ───────────────────────────────────────────────────────────────────
+
+  /** Sélectionne une île comme destination GPS (re-clic = désélection). */
+  selectGpsTarget(island: IslandTarget): void {
+    this.gpsTarget.set(this.gpsTarget()?.name === island.name ? null : island);
+  }
+
+  clearGps(): void {
+    this.gpsTarget.set(null);
+    this.showGpsPanel.set(false);
+  }
+
+  /**
+   * Calcule la route optimale en tenant compte de l'énergie disponible.
+   * Si le navire n'a pas assez d'énergie pour un trajet direct, insère des
+   * arrêts de recharge sur les îles KNOWN les plus favorables.
+   */
+  private computeEnergyAwarePath(
+    fx: number, fy: number,
+    tx: number, ty: number,
+    energy: number,
+    maxEnergy: number,
+    rechargeIslands: IslandTarget[],
+  ): GpsResult {
+    const allWaypoints = new Set<string>();
+    const segments: GpsSegment[] = [];
+    let cx = fx, cy = fy;
+    let remainingEnergy = energy;
+    let reached = false;
+
+    for (let iter = 0; iter <= 15; iter++) {
+      const dist = this.chebyshev(cx, cy, tx, ty);
+      if (dist === 0) { reached = true; break; }
+
+      if (dist <= remainingEnergy) {
+        // Tronçon final direct vers la cible
+        const seg = this.buildSegment(cx, cy, tx, ty, false);
+        seg.waypoints.forEach(w => allWaypoints.add(w));
+        segments.push(seg);
+        reached = true;
+        break;
+      }
+
+      // Chercher une île KNOWN accessible pour recharger
+      const reachable = rechargeIslands.filter(i =>
+        !(i.x === cx && i.y === cy) &&
+        this.chebyshev(cx, cy, i.x, i.y) <= remainingEnergy
+      );
+
+      if (reachable.length === 0) {
+        // Aucune recharge accessible — trajet partiel jusqu'à la limite d'énergie
+        const partial = this.getPartialDest(cx, cy, tx, ty, remainingEnergy);
+        const seg = this.buildSegment(cx, cy, partial.x, partial.y, false);
+        seg.waypoints.forEach(w => allWaypoints.add(w));
+        segments.push(seg);
+        break;
+      }
+
+      // Choisir l'île qui minimise la distance totale restante
+      const best = reachable.reduce((b, i) => {
+        const scoreI = this.chebyshev(cx, cy, i.x, i.y) +
+                       Math.max(0, this.chebyshev(i.x, i.y, tx, ty) - maxEnergy);
+        const scoreB = this.chebyshev(cx, cy, b.x, b.y) +
+                       Math.max(0, this.chebyshev(b.x, b.y, tx, ty) - maxEnergy);
+        return scoreI < scoreB ? i : b;
+      });
+
+      const seg = this.buildSegment(cx, cy, best.x, best.y, true, best.name);
+      seg.waypoints.forEach(w => allWaypoints.add(w));
+      segments.push(seg);
+      cx = best.x;
+      cy = best.y;
+      remainingEnergy = maxEnergy; // recharge complète
+    }
+
+    const totalMoves = segments.reduce((s, seg) => s + seg.movesNeeded, 0);
+
+    return {
+      segments,
+      allWaypoints,
+      totalMoves,
+      targetX:          tx,
+      targetY:          ty,
+      rechargeStops:    segments.filter(s => s.isRecharge).length,
+      energySufficient: this.chebyshev(fx, fy, tx, ty) <= energy,
+      canReach:         reached,
+    };
+  }
+
+  /** Calcule le point le plus avancé qu'on peut atteindre en `steps` pas. */
+  private getPartialDest(fx: number, fy: number, tx: number, ty: number, steps: number): { x: number; y: number } {
+    let x = fx, y = fy;
+    let dx = tx - fx, dy = ty - fy;
+    for (let i = 0; i < steps && (dx !== 0 || dy !== 0); i++) {
+      const sx = Math.sign(dx), sy = Math.sign(dy);
+      x += sx; y += sy;
+      dx -= sx; dy -= sy;
+    }
+    return { x, y };
+  }
+
+  /** Construit un GpsSegment entre deux points. */
+  private buildSegment(fx: number, fy: number, tx: number, ty: number, isRecharge: boolean, toName?: string): GpsSegment {
+    const rawDirs: string[] = [];
+    const waypoints = new Set<string>();
+    let dx = tx - fx, dy = ty - fy;
+    let cx = fx, cy = fy;
+
+    while (dx !== 0 || dy !== 0) {
+      const sx = Math.sign(dx), sy = Math.sign(dy);
+      cx += sx; cy += sy;
+      dx -= sx; dy -= sy;
+      waypoints.add(`${cx},${cy}`);
+      rawDirs.push(this.signToDir(sx, sy));
+    }
+
+    const steps: GpsStep[] = [];
+    for (const d of rawDirs) {
+      if (steps.length && steps[steps.length - 1].dir === d) steps[steps.length - 1].count++;
+      else steps.push({ dir: d, count: 1, emoji: this.dirEmoji(d) });
+    }
+
+    return { steps, waypoints, movesNeeded: rawDirs.length, isRecharge, toName };
+  }
+
+  private chebyshev(ax: number, ay: number, bx: number, by: number): number {
+    return Math.max(Math.abs(bx - ax), Math.abs(by - ay));
+  }
+
+  private signToDir(sx: number, sy: number): string {
+    const MAP: Record<string, string> = {
+      '0,-1': 'N', '0,1': 'S', '1,0': 'E', '-1,0': 'W',
+      '1,-1': 'NE', '-1,-1': 'NW', '1,1': 'SE', '-1,1': 'SW',
+    };
+    return MAP[`${sx},${sy}`] ?? '?';
+  }
+
+  private dirEmoji(dir: string): string {
+    const MAP: Record<string, string> = {
+      N: '⬆️', S: '⬇️', E: '➡️', W: '⬅️',
+      NE: '↗️', NW: '↖️', SE: '↘️', SW: '↙️',
+    };
+    return MAP[dir] ?? '❓';
+  }
+
+  // ── Broker HUD ────────────────────────────────────────────────────────────
+
+  /** Dernières offres reçues via broker — filtrées aux 10 minutes, max 5 affichées. */
+  readonly recentBrokerOffers = computed<StoredOffer[]>(() => {
+    const cutoff = Date.now() - 10 * 60 * 1000;
+    return this.broker.liveOffers()
+      .filter(o => new Date(o.receivedAt).getTime() > cutoff)
+      .slice(0, 5);
+  });
+
+  brokerResourceIcon(type: string): string {
+    return type === 'BOISIUM' ? '🪵' : type === 'FERONIUM' ? '⛏️' : type === 'CHARBONIUM' ? '🪨' : '📦';
+  }
+
+  fmtBrokerTime(date: Date): string {
+    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diff < 60)   return `il y a ${diff}s`;
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)}min`;
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
 
   // ── Plein écran ───────────────────────────────────────────────────────────
 
