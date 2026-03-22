@@ -63,13 +63,16 @@ export class App implements OnInit {
   tokenInput = '';
 
   async ngOnInit() {
+    // Chargement de la carte de base (map.json) dès le démarrage, sans authentification
+    await this.loadMapJson();
+
     const saved = localStorage.getItem('3026_token');
     if (saved) {
       API_CONFIG.TOKEN = saved;
       this.game.token.set(saved);
       this.game.isAuthenticated.set(true);
       this.game.log('Token restauré depuis le stockage local.', 'info');
-      await Promise.allSettled([this.refreshAll(), this.loadMap()]);
+      await this.refreshAll();
       this.broker.autoConnect();
     }
   }
@@ -96,7 +99,7 @@ export class App implements OnInit {
       this.game.token.set(res.codingGameId!);
       this.game.isAuthenticated.set(true);
       this.game.log(`Inscription réussie ! Équipe : ${res.name}`, 'action');
-      await Promise.allSettled([this.refreshAll(), this.loadMap()]);
+      await this.refreshAll();
     } catch (e: any) {
       this.game.log(`Erreur inscription: ${e.message}`, 'error');
     }
@@ -109,7 +112,7 @@ export class App implements OnInit {
     this.game.token.set(API_CONFIG.TOKEN);
     this.game.isAuthenticated.set(true);
     this.game.log('Connecté.', 'action');
-    await Promise.allSettled([this.refreshAll(), this.loadMap()]);
+    await this.refreshAll();
     this.broker.autoConnect();
   }
 
@@ -363,6 +366,29 @@ export class App implements OnInit {
     this.game.log('Données mises à jour.', 'info');
   }
 
+  /**
+   * Charge la carte de base depuis /map.json (fichier statique public).
+   * Peuple baseMapCells — pas de token requis, exécuté avant l'auth.
+   * Les cellules découvertes en jeu (localStorage) ont toujours la priorité.
+   */
+  private loadMapJson(): Promise<void> {
+    return new Promise((resolve) => {
+      this.mapService.loadStaticMap().subscribe({
+        next: (cells) => {
+          if (cells.length) {
+            this.game.initBaseMap(cells);
+            this.game.log(`🗺️ Carte de base chargée : ${cells.length} cellules.`, 'info');
+          }
+          resolve();
+        },
+        error: () => {
+          this.game.log('map.json indisponible — carte de base vide.', 'warning');
+          resolve();
+        },
+      });
+    });
+  }
+
   /** Charge (ou recharge) la carte depuis le backend map (localhost:8080) */
   private loadMap(): Promise<void> {
     return new Promise((resolve) => {
@@ -371,12 +397,6 @@ export class App implements OnInit {
           this.game.mapState.set(mapState);
           if (mapState.cells?.length) {
             this.game.addCells(mapState.cells);
-          }
-          if (mapState.boatPosition) {
-            const ship = this.game.ship();
-            if (ship) {
-              this.game.ship.set({ ...ship, currentPosition: mapState.boatPosition });
-            }
           }
           resolve();
         },

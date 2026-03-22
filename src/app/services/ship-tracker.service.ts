@@ -60,10 +60,7 @@ export class ShipTrackerService {
         if (mapState.cells?.length) {
           this.game.addCells(mapState.cells);
         }
-        if (mapState.boatPosition) {
-          const s = this.game.ship();
-          if (s) this.game.ship.set({ ...s, currentPosition: mapState.boatPosition });
-        }
+
       } catch { /* map backend optionnel — silencieux */ }
 
       this.lastUpdate.set(new Date());

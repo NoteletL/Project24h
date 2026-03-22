@@ -1,4 +1,4 @@
-import { Injectable, signal, effect } from '@angular/core';
+import { Injectable, signal, computed, effect } from '@angular/core';
 import { Ship, Resource, PlayerDetails } from './api.service';
 import { Cell, MapState } from '../models/map.model';
 
@@ -38,8 +38,21 @@ export class GameStateService {
   // Resources
   readonly resources = signal<Resource[]>([]);
 
-  // Map — cellules connues (en mémoire, persistées partiellement dans localStorage)
-  readonly knownCells = signal<Map<string, Cell>>(this.loadCellsFromStorage());
+  // Map — couche de base chargée depuis map.json (non persistée dans localStorage)
+  readonly baseMapCells = signal<Map<string, Cell>>(new Map());
+
+  // Map — cellules découvertes en jeu, persistées dans localStorage
+  readonly persistedCells = signal<Map<string, Cell>>(this.loadCellsFromStorage());
+
+  /**
+   * Vue fusionnée : baseMapCells (fond statique) + persistedCells (jeu en cours).
+   * persistedCells a la priorité sur baseMapCells pour les mêmes coordonnées.
+   */
+  readonly knownCells = computed<Map<string, Cell>>(() => {
+    const merged = new Map(this.baseMapCells());
+    for (const [k, v] of this.persistedCells()) merged.set(k, v);
+    return merged;
+  });
 
   // MapState complet retourné par le backend map (localhost:8080)
   readonly mapState = signal<MapState | null>(null);
@@ -58,10 +71,9 @@ export class GameStateService {
   readonly transactions = signal<MarketTransaction[]>([]);
 
   constructor() {
-    // Persiste les cellules dans localStorage à chaque changement
+    // Persiste uniquement les cellules découvertes en jeu (pas la carte de base)
     effect(() => {
-      const entries = Array.from(this.knownCells().entries());
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      this.persistCells(this.persistedCells());
     });
     // Persiste le bateau dans localStorage à chaque changement
     effect(() => {
@@ -73,18 +85,31 @@ export class GameStateService {
 
   // ── Map ───────────────────────────────────────────────────────────────────
 
-  /** Ajoute ou met à jour des cellules dans la map connue */
+  /**
+   * Initialise la couche de base depuis map.json.
+   * Appelé une seule fois au démarrage, avant l'authentification.
+   * Ces cellules ne sont pas persistées dans localStorage.
+   */
+  initBaseMap(cells: Cell[]): void {
+    const map = new Map<string, Cell>();
+    for (const c of cells) {
+      if (c.id) map.set(c.id, c);
+    }
+    this.baseMapCells.set(map);
+  }
+
+  /** Ajoute ou met à jour des cellules dans la couche persistée (découvertes en jeu) */
   addCells(cells: Cell[]): void {
-    this.knownCells.update(map => {
+    this.persistedCells.update(map => {
       const next = new Map(map);
       for (const c of cells) next.set(c.id, c);
       return next;
     });
   }
 
-  /** Efface toutes les cellules (mémoire + localStorage) */
+  /** Efface les cellules découvertes en jeu (mémoire + localStorage). La carte de base reste intacte. */
   clearCells(): void {
-    this.knownCells.set(new Map());
+    this.persistedCells.set(new Map());
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   }
 

@@ -1,12 +1,22 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { MapState, MovementUpdate } from '../models/map.model';
+import { map } from 'rxjs/operators';
+import { Cell, MapState, MovementUpdate } from '../models/map.model';
 
 @Injectable({ providedIn: 'root' })
 export class MapService {
   private http = inject(HttpClient);
-  private readonly baseUrl = 'https://foreign-shape-down-particularly.trycloudflare.com/api/map';
+  private readonly baseUrl = 'https://project24h.serveousercontent.com/api/map';
+
+  /**
+   * GET /map.json (fichier statique public)
+   * Charge la carte de base au démarrage de l'application.
+   * Ces données servent de fond permanent — la couche localStorage a la priorité.
+   */
+  loadStaticMap(): Observable<Cell[]> {
+    return this.http.get<{ cells: Cell[] }>('/map.json').pipe(map((data) => data?.cells ?? []));
+  }
 
   /**
    * GET /api/map

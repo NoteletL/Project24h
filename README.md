@@ -1,59 +1,68 @@
-# Project24h
+# 🌊 3026 — Interface de jeu multijoueur
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.3.
+> Vinci Energies - 24H du code — 2026
 
-## Development server
+---
 
-To start a local development server, run:
+## 🎯 Concept
+
+**3026** est un jeu multijoueur en temps réel où chaque équipe pilote un bateau sur une carte océanique.  
+L'objectif : explorer la carte, récolter des ressources, découvrir des îles et dominer le marché.
+
+---
+
+## ⚙️ Stack technique
+
+| Couche | Technologie |
+|---|---|
+| Frontend | **Angular 21** (standalone, signals) |
+| Communication | **REST API** (HTTP) + **AMQP** (broker temps réel) |
+| Proxy | **Node.js** (contournement headers navigateur) |
+| Carte 3D | **Three.js** |
+
+---
+
+## 🗺️ Fonctionnalités
+
+- **Carte 2D / 3D** — fog of war, découverte progressive des cellules
+- **Navigation** — D-pad (N / S / E / W / diagonales), recentrage automatique
+- **Ressources** — BOISIUM · FERONIUM · CHARBONIUM · OR
+- **Marketplace** — achat / vente d'offres entre équipes
+- **Bot automatique** — déplacement et trading automatisés
+- **Broker AMQP** — événements temps réel (positions, prix)
+- **Historique des prix** — graphiques d'évolution des ressources
+
+---
+
+## 🏗️ Architecture
+
+```
+src/app/
+├── services/          → API, état global (signals), bot, broker, tracker
+├── components/
+│   ├── game-map/      → Carte 2D interactive
+│   ├── three/         → Vue 3D (Three.js)
+│   ├── controls/      → Navigation + actions
+│   ├── marketplace/   → Achat / vente
+│   ├── log-panel/     → Journal temps réel
+│   └── recap-panel/   → Tableau de bord équipe
+└── app.ts             → Racine + orchestration
+```
+
+---
+
+## 🚀 Lancer le projet
 
 ```bash
+npm install
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Ouvrir [http://localhost:4200](http://localhost:4200)
 
-## Code scaffolding
+---
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## 👥 Équipe
+Mathieu, Léo, Achraf, Esteban, Isaac
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+24h du code — 2026
