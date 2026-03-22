@@ -1,5 +1,6 @@
-import { Component, inject, signal, computed, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
+import { AudioService } from '../../services/audio.service';
 import { Cell } from '../../models/map.model';
 
 // Dimensions par défaut (mode fenêtré)
@@ -7,10 +8,11 @@ const DEFAULT_W = 720;
 const DEFAULT_H = 528;
 
 // Zoom = nombre de colonnes visibles (impair pour centrage)
-const ZOOM_DEFAULT = 15;
-const ZOOM_MIN     = 7;
-const ZOOM_MAX     = 300;
-const ZOOM_STEP    = 10;
+const ZOOM_DEFAULT     = 15;
+const ZOOM_DEFAULT_POV = 11;
+const ZOOM_MIN         = 7;
+const ZOOM_MAX         = 300;
+const ZOOM_STEP        = 10;
 
 @Component({
   selector: 'app-game-map',
@@ -19,7 +21,8 @@ const ZOOM_STEP    = 10;
   styleUrl: './game-map.css',
 })
 export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
-  readonly game = inject(GameStateService);
+  readonly game  = inject(GameStateService);
+  readonly audio = inject(AudioService);
 
   @ViewChild('viewport')   viewportRef!: ElementRef<HTMLDivElement>;
   @ViewChild('mapWrapper') wrapperRef!:  ElementRef<HTMLDivElement>;
@@ -29,6 +32,8 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly zoomCols     = signal(ZOOM_DEFAULT);
   readonly isFullscreen = signal(false);
   readonly showZones    = signal(true);
+  readonly povMode      = signal(false);
+  readonly lastMoveDir  = signal<'N' | 'S' | 'E' | 'W' | null>(null);
 
   /** Dimensions réelles du viewport mesurées par ResizeObserver */
   readonly viewportW = signal(DEFAULT_W);
@@ -44,6 +49,44 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private dragStartOffsetY = 0;
   private userHasPanned = false;
   private resizeObserver?: ResizeObserver;
+
+  private prevShipX: number | null = null;
+  private prevShipY: number | null = null;
+  private moveDirTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Vrai si le navire est dans une zone à risque (zone numérotée ou présence d'autres navires). */
+  readonly inDanger = computed(() => {
+    const pos = this.game.ship()?.currentPosition;
+    if (!pos) return false;
+    return pos.zone > 0 || (pos.ships?.length ?? 0) > 0;
+  });
+
+  constructor() {
+    // Calcule la direction du dernier déplacement du navire
+    effect(() => {
+      const pos = this.game.ship()?.currentPosition;
+      if (!pos) return;
+      const prevX = this.prevShipX;
+      const prevY = this.prevShipY;
+      this.prevShipX = pos.x;
+      this.prevShipY = pos.y;
+      if (prevX !== null && prevY !== null && (pos.x !== prevX || pos.y !== prevY)) {
+        const dx = pos.x - prevX;
+        const dy = pos.y - prevY;
+        const dir: 'N' | 'S' | 'E' | 'W' =
+          Math.abs(dy) >= Math.abs(dx) ? (dy > 0 ? 'S' : 'N') : (dx > 0 ? 'E' : 'W');
+        this.lastMoveDir.set(dir);
+        if (this.moveDirTimer) clearTimeout(this.moveDirTimer);
+        this.moveDirTimer = setTimeout(() => this.lastMoveDir.set(null), 900);
+      }
+    });
+
+    // Synchronise l'état danger avec l'audio (s'active aussi quand la musique démarre)
+    effect(() => {
+      const active = this.audio.isPlaying() && this.inDanger();
+      this.audio.setDanger(active);
+    });
+  }
 
   get ship() { return this.game.ship(); }
 
@@ -67,7 +110,10 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return (this.ship?.currentPosition?.x ?? 0) + this.viewOffsetX();
   }
   private get viewCenterY(): number {
-    return (this.ship?.currentPosition?.y ?? 0) + this.viewOffsetY();
+    const base = (this.ship?.currentPosition?.y ?? 0) + this.viewOffsetY();
+    // En mode POV, décaler la caméra en avant pour voir plus de mer devant le navire
+    if (this.povMode()) return base - Math.floor(this.zoomRows * 0.28);
+    return base;
   }
   private get viewStartX(): number {
     return this.viewCenterX - Math.floor(this.zoomCols() / 2);
@@ -115,6 +161,14 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   zoomIn():    void { this.zoomCols.update(v => Math.max(v - ZOOM_STEP, ZOOM_MIN)); }
   zoomOut():   void { this.zoomCols.update(v => Math.min(v + ZOOM_STEP, ZOOM_MAX)); }
   zoomReset(): void { this.zoomCols.set(ZOOM_DEFAULT); }
+
+  /** Bascule le mode POV : zoom réduit + recentrage automatique. */
+  togglePov(): void {
+    const next = !this.povMode();
+    this.povMode.set(next);
+    if (next) { this.zoomCols.set(ZOOM_DEFAULT_POV); this.recenter(); }
+    else       { this.zoomReset(); }
+  }
 
   onWheel(e: WheelEvent): void {
     e.preventDefault();
@@ -183,20 +237,15 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const wrapper = this.wrapperRef?.nativeElement;
     if (!wrapper) return;
     try {
-      if (!document.fullscreenElement) {
-        await wrapper.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch { /* refusé hors geste utilisateur ou navigateur non supporté */ }
+      if (!document.fullscreenElement) await wrapper.requestFullscreen();
+      else                             await document.exitFullscreen();
+    } catch { /* refusé hors geste utilisateur */ }
   }
 
   @HostListener('document:fullscreenchange')
   onFullscreenChange(): void {
     const active = !!document.fullscreenElement;
     this.isFullscreen.set(active);
-    // En sortant du plein écran : réinitialiser les dimensions par défaut
-    // (le ResizeObserver reprendra la main dès que l'élément retrouve sa taille)
     if (!active) {
       this.viewportW.set(DEFAULT_W);
       this.viewportH.set(DEFAULT_H);
@@ -224,11 +273,13 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    if (this.moveDirTimer) clearTimeout(this.moveDirTimer);
   }
 
   // ── Souris / Tactile ──────────────────────────────────────────────────────
 
   onMouseDown(e: MouseEvent): void {
+    if (this.povMode()) return; // désactiver le pan en mode POV
     this.isDragging = true;
     this.dragStartX = e.clientX;
     this.dragStartY = e.clientY;
@@ -251,7 +302,7 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   onMouseUp(): void { this.isDragging = false; }
 
   onTouchStart(e: TouchEvent): void {
-    if (e.touches.length !== 1) return;
+    if (e.touches.length !== 1 || this.povMode()) return;
     this.isDragging = true;
     this.dragStartX = e.touches[0].clientX;
     this.dragStartY = e.touches[0].clientY;

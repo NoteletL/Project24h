@@ -1,4 +1,11 @@
-<div class="map-wrapper" #mapWrapper [class.is-fullscreen]="isFullscreen()">
+<div class="map-wrapper" #mapWrapper
+     [class.is-fullscreen]="isFullscreen()"
+     [class.pov-mode]="povMode()"
+     [class.in-danger]="inDanger()"
+     [class.move-N]="lastMoveDir() === 'N'"
+     [class.move-S]="lastMoveDir() === 'S'"
+     [class.move-E]="lastMoveDir() === 'E'"
+     [class.move-W]="lastMoveDir() === 'W'">
 
   <!-- Toolbar -->
   <div class="map-toolbar">
@@ -7,6 +14,9 @@
         ⛵ ({{ ship.currentPosition?.x ?? '?' }}, {{ ship.currentPosition?.y ?? '?' }})
         @if (viewOffsetX() !== 0 || viewOffsetY() !== 0) {
           <span class="offset-badge">vue décalée</span>
+        }
+        @if (inDanger()) {
+          <span class="danger-badge" aria-hidden="true">⚠️ Danger</span>
         }
       </span>
     }
@@ -32,6 +42,28 @@
       }
     </button>
 
+    <!-- Mode POV -->
+    <button
+      class="btn-pov"
+      (click)="togglePov()"
+      [class.btn-pov--on]="povMode()"
+      [attr.aria-pressed]="povMode()"
+      [attr.aria-label]="povMode() ? 'Quitter le mode POV' : 'Vue capitaine point de vue (POV)'"
+      title="Vue du capitaine — semi-3D">
+      🧭 POV
+    </button>
+
+    <!-- Musique de fond -->
+    <button
+      class="btn-audio"
+      (click)="audio.toggle()"
+      [class.btn-audio--on]="audio.isPlaying()"
+      [attr.aria-pressed]="audio.isPlaying()"
+      [attr.aria-label]="audio.isPlaying() ? 'Couper la musique pirate' : 'Activer la musique pirate'"
+      title="Musique pirate (Web Audio API)">
+      {{ audio.isPlaying() ? '🔊' : '🔇' }}
+    </button>
+
     <button
       class="btn-fullscreen"
       (click)="toggleFullscreen()"
@@ -54,44 +86,101 @@
     </div>
   }
 
-  <!-- Viewport -->
-  <div #viewport
-    class="map-viewport"
-    [class.dragging]="isDragging"
-    [style.grid-template-columns]="'repeat(' + zoomCols() + ', ' + tilePx + 'px)'"
-    [style.grid-template-rows]="'repeat(' + zoomRows + ', ' + tilePx + 'px)'"
-    (mousedown)="onMouseDown($event)"
-    (touchstart)="onTouchStart($event)"
-    (wheel)="onWheel($event)">
+  <!-- Conteneur perspective : viewport + overlays danger + proue POV -->
+  <div class="pov-perspective">
 
-    @for (row of gridArray; track $index) {
-      @for (cell of row; track (cell ? cell.id : ($index + '_null'))) {
-        <div class="tile"
-          [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
-          [style.width]="tilePx + 'px'"
-          [style.height]="tilePx + 'px'"
-          [style.font-size]="tileFontSize"
-          [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.zone > 0 ? ' — Zone ' + cell.zone : '') + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
+    <!-- Viewport principal -->
+    <div #viewport
+      class="map-viewport"
+      [class.dragging]="isDragging"
+      [style.grid-template-columns]="'repeat(' + zoomCols() + ', ' + tilePx + 'px)'"
+      [style.grid-template-rows]="'repeat(' + zoomRows + ', ' + tilePx + 'px)'"
+      [attr.aria-label]="'Carte de navigation, position (' + (ship?.currentPosition?.x ?? '?') + ', ' + (ship?.currentPosition?.y ?? '?') + ')'"
+      (mousedown)="onMouseDown($event)"
+      (touchstart)="onTouchStart($event)"
+      (wheel)="onWheel($event)">
 
-          <!-- Fond coloré de zone -->
-          @if (showZones() && hasZone(cell)) {
-            <span class="tile-zone-overlay" aria-hidden="true"
-              [style.background]="getZoneTintColor(cell!.zone)">
-            </span>
-          }
+      @for (row of gridArray; track $index) {
+        @for (cell of row; track (cell ? cell.id : ($index + '_null'))) {
+          <div class="tile"
+            [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
+            [style.width]="tilePx + 'px'"
+            [style.height]="tilePx + 'px'"
+            [style.font-size]="tileFontSize"
+            [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.zone > 0 ? ' — Zone ' + cell.zone : '') + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
 
-          <!-- Icône -->
-          <span class="tile-icon" aria-hidden="true">{{ getCellIcon(cell) }}</span>
+            <!-- Fond coloré de zone -->
+            @if (showZones() && hasZone(cell)) {
+              <span class="tile-zone-overlay" aria-hidden="true"
+                [style.background]="getZoneTintColor(cell!.zone)">
+              </span>
+            }
 
-          <!-- Numéro de zone (tuile ≥ 22 px) -->
-          @if (showZones() && hasZone(cell) && tilePx >= 22) {
-            <span class="tile-zone-label" aria-hidden="true"
-              [style.color]="getZoneLabelColor(cell!.zone)">
-              {{ cell!.zone }}
-            </span>
-          }
-        </div>
+            <!-- Icône -->
+            <span class="tile-icon" aria-hidden="true">{{ getCellIcon(cell) }}</span>
+
+            <!-- Numéro de zone (tuile ≥ 22 px) -->
+            @if (showZones() && hasZone(cell) && tilePx >= 22) {
+              <span class="tile-zone-label" aria-hidden="true"
+                [style.color]="getZoneLabelColor(cell!.zone)">
+                {{ cell!.zone }}
+              </span>
+            }
+          </div>
+        }
       }
-    }
+    </div>
+
+    <!-- Pluie de tempête (visible en zone à risque) -->
+    <div class="storm-rain" aria-hidden="true"></div>
+
+    <!-- Vignette rouge pulsante (zone à risque) -->
+    <div class="danger-vignette" aria-hidden="true"></div>
+
+    <!-- Proue du navire en SVG (visible en mode POV uniquement) -->
+    <div class="ship-prow-container" aria-hidden="true">
+      <div class="ship-prow-inner">
+        <svg class="ship-prow" viewBox="0 0 400 180" xmlns="http://www.w3.org/2000/svg" focusable="false">
+          <!-- mer derrière la proue -->
+          <path d="M0,145 C80,135 180,130 200,130 C220,130 320,135 400,145 L400,180 L0,180 Z" fill="#0c2a4a"/>
+          <!-- coque gauche -->
+          <path d="M0,180 C15,145 55,105 115,75 L180,55 L200,40 L200,180 Z" fill="#2a1506" stroke="#5c3010" stroke-width="2"/>
+          <!-- coque droite -->
+          <path d="M400,180 C385,145 345,105 285,75 L220,55 L200,40 L200,180 Z" fill="#2a1506" stroke="#5c3010" stroke-width="2"/>
+          <!-- pont central -->
+          <path d="M165,68 L200,43 L235,68 L240,180 L160,180 Z" fill="#3a2010" stroke="#5c3010" stroke-width="1"/>
+          <!-- planches du pont -->
+          <line x1="163" y1="90"  x2="237" y2="90"  stroke="#4a2e12" stroke-width="1.5" opacity="0.8"/>
+          <line x1="162" y1="110" x2="238" y2="110" stroke="#4a2e12" stroke-width="1.5" opacity="0.8"/>
+          <line x1="161" y1="130" x2="239" y2="130" stroke="#4a2e12" stroke-width="1.5" opacity="0.8"/>
+          <line x1="160" y1="150" x2="240" y2="150" stroke="#4a2e12" stroke-width="1.5" opacity="0.8"/>
+          <!-- beaupré (mât avant) -->
+          <line x1="200" y1="43" x2="200" y2="18" stroke="#5c3010" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="200" cy="18" r="4" fill="#8b6914"/>
+          <!-- taquet gauche -->
+          <rect x="138" y="78" width="18" height="11" rx="3" fill="#7a6040" stroke="#5c3010" stroke-width="1"/>
+          <circle cx="147" cy="83" r="5" fill="none" stroke="#a08020" stroke-width="2"/>
+          <!-- taquet droit -->
+          <rect x="244" y="78" width="18" height="11" rx="3" fill="#7a6040" stroke="#5c3010" stroke-width="1"/>
+          <circle cx="253" cy="83" r="5" fill="none" stroke="#a08020" stroke-width="2"/>
+          <!-- cordages -->
+          <path d="M200,40 C170,58 152,70 147,80" stroke="#8a7050" stroke-width="1.5" stroke-dasharray="5,3" fill="none"/>
+          <path d="M200,40 C230,58 248,70 253,80" stroke="#8a7050" stroke-width="1.5" stroke-dasharray="5,3" fill="none"/>
+          <!-- écumes d'eau de chaque côté -->
+          <path d="M75,143 C90,133 112,131 130,134 C118,137 100,141 80,146 Z" fill="rgba(150,200,240,0.3)"/>
+          <path d="M325,143 C310,133 288,131 270,134 C282,137 300,141 320,146 Z" fill="rgba(150,200,240,0.3)"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Ciel / horizon étoilé (mode POV uniquement) -->
+    <div class="pov-sky" aria-hidden="true"></div>
+
+  </div><!-- fin .pov-perspective -->
+
+  <!-- Région live pour les lecteurs d'écran -->
+  <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+    @if (inDanger()) { Zone à risque détectée }
   </div>
+
 </div>
