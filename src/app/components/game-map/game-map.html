@@ -97,17 +97,19 @@
       [style.grid-template-rows]="'repeat(' + zoomRows + ', ' + tilePx + 'px)'"
       [attr.aria-label]="'Carte de navigation, position (' + (ship?.currentPosition?.x ?? '?') + ', ' + (ship?.currentPosition?.y ?? '?') + ')'"
       (mousedown)="onMouseDown($event)"
+      (mousemove)="onViewportMouseMove($event)"
+      (mouseleave)="onViewportMouseLeave()"
       (touchstart)="onTouchStart($event)"
       (wheel)="onWheel($event)">
 
       @for (row of gridArray; track $index) {
         @for (cell of row; track (cell ? cell.id : ($index + '_null'))) {
-          <div class="tile"
-            [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
+          <div
+            [class]="getTileClass(cell)"
             [style.width]="tilePx + 'px'"
             [style.height]="tilePx + 'px'"
             [style.font-size]="tileFontSize"
-            [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.zone > 0 ? ' — Zone ' + cell.zone : '') + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
+            [title]="getTileTitle(cell)">
 
             <!-- Fond coloré de zone -->
             @if (showZones() && hasZone(cell)) {
@@ -116,10 +118,37 @@
               </span>
             }
 
-            <!-- Icône -->
+            <!-- Icône principale (bateau, île…) -->
             <span class="tile-icon" aria-hidden="true">{{ getCellIcon(cell) }}</span>
 
-            <!-- Numéro de zone (tuile ≥ 22 px) -->
+            <!-- Badge zone à risque — coin haut-gauche -->
+            @if (hasZone(cell) && tilePx >= 18) {
+              <span class="tile-risk-badge" aria-hidden="true"
+                [style.color]="getZoneLabelColor(cell!.zone)">!</span>
+            }
+
+            <!-- Badge navires ennemis — coin haut-droit -->
+            @if (cell && (cell.ships?.length ?? 0) > 0 && tilePx >= 18) {
+              <span class="tile-ships-badge" aria-hidden="true">⚓{{ cell.ships.length }}</span>
+            }
+
+            <!-- Badge état découverte île — coin haut-droit (si pas de navires) -->
+            @if (cell?.island && (cell?.ships?.length ?? 0) === 0 && tilePx >= 18) {
+              <span class="tile-island-state"
+                [class.tile-island-known]="getIslandState(cell) === 'KNOWN'"
+                [class.tile-island-discovered]="getIslandState(cell) === 'DISCOVERED'"
+                aria-hidden="true">
+                @if (getIslandState(cell) === 'KNOWN') { ✓ }
+                @else if (getIslandState(cell) === 'DISCOVERED') { ◉ }
+              </span>
+            }
+
+            <!-- Nom de l'île (tuiles larges uniquement) -->
+            @if (cell?.island && tilePx >= 36) {
+              <span class="tile-island-name" aria-hidden="true">{{ cell!.island!.name }}</span>
+            }
+
+            <!-- Numéro de zone — coin bas-droit -->
             @if (showZones() && hasZone(cell) && tilePx >= 22) {
               <span class="tile-zone-label" aria-hidden="true"
                 [style.color]="getZoneLabelColor(cell!.zone)">
@@ -177,6 +206,76 @@
     <div class="pov-sky" aria-hidden="true"></div>
 
   </div><!-- fin .pov-perspective -->
+
+  <!-- ── Infobulle contextuelle au survol ──────────────────────────────────── -->
+  @let hCell = hoveredCell();
+  @if (hCell !== null && !povMode()) {
+    <div class="map-tooltip"
+         role="tooltip"
+         [style.left.px]="tooltipX()"
+         [style.top.px]="tooltipY()">
+
+      <!-- En-tête : type de terrain + coordonnées -->
+      <div class="tooltip-header">
+        @if (hCell.type === 'SAND') {
+          <span class="tooltip-type-chip sand">🏝️ Île</span>
+        } @else if (hCell.type === 'SEA') {
+          <span class="tooltip-type-chip sea">🌊 Mer</span>
+        } @else if (hCell.type === 'ROCKS') {
+          <span class="tooltip-type-chip rocks">🪨 Récifs</span>
+        } @else {
+          <span class="tooltip-type-chip fog">🌫️ Inexploré</span>
+        }
+        <span class="tooltip-coords">({{ hCell.x }}, {{ hCell.y }})</span>
+      </div>
+
+      <!-- Île : nom, bonus quotient, état de découverte -->
+      @let island = hCell.island;
+      @if (island) {
+        <div class="tooltip-section tooltip-island">
+          <div class="tooltip-island-name">{{ island.name }}</div>
+          @if (island.bonusQuotient > 0) {
+            <div class="tooltip-detail">📈 +{{ island.bonusQuotient }} quotient de production</div>
+          }
+          @switch (getIslandState(hCell)) {
+            @case ('KNOWN') {
+              <div class="tooltip-state known">✅ Découverte validée</div>
+            }
+            @case ('DISCOVERED') {
+              <div class="tooltip-state discovered">👁️ Aperçue — retournez à quai pour valider !</div>
+            }
+            @default {
+              <div class="tooltip-state unknown">❓ Non encore découverte</div>
+            }
+          }
+        </div>
+      }
+
+      <!-- Zone à risque -->
+      @if (hCell.zone > 0) {
+        <div class="tooltip-section tooltip-danger"
+             [style.border-left-color]="getZoneLabelColor(hCell.zone)">
+          <div class="tooltip-danger-title"
+               [style.color]="getZoneLabelColor(hCell.zone)">
+            ⚠️ Zone {{ hCell.zone }} — Zone à risque
+          </div>
+          <div class="tooltip-danger-detail">20 % de risque par déplacement</div>
+          <div class="tooltip-danger-threats">⛈ Tempêtes &nbsp;·&nbsp; ☠️ Pirates &nbsp;·&nbsp; 🦑 Kraken &nbsp;·&nbsp; 🪨 Récifs</div>
+        </div>
+      }
+
+      <!-- Navires présents -->
+      @if ((hCell.ships?.length ?? 0) > 0) {
+        <div class="tooltip-section tooltip-ships">
+          <div class="tooltip-ships-title">⚓ {{ hCell.ships.length }} navire(s) présent(s)</div>
+          @for (ship of hCell.ships; track $index) {
+            <div class="tooltip-ship-entry">— {{ ship.playerName ?? 'Inconnu' }} ({{ ship.level?.name ?? '?' }})</div>
+          }
+        </div>
+      }
+
+    </div>
+  }
 
   <!-- Région live pour les lecteurs d'écran -->
   <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">

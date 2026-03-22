@@ -35,6 +35,10 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly povMode      = signal(false);
   readonly lastMoveDir  = signal<'N' | 'S' | 'E' | 'W' | null>(null);
 
+  readonly hoveredCell = signal<Cell | null>(null);
+  readonly tooltipX    = signal(0);
+  readonly tooltipY    = signal(0);
+
   /** Dimensions réelles du viewport mesurées par ResizeObserver */
   readonly viewportW = signal(DEFAULT_W);
   readonly viewportH = signal(DEFAULT_H);
@@ -140,6 +144,17 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
       }));
   });
 
+  /** Map nom d'île → état de découverte du joueur (KNOWN | DISCOVERED). */
+  readonly discoveredIslandMap = computed(() => {
+    const details = this.game.playerDetails();
+    const m = new Map<string, 'KNOWN' | 'DISCOVERED'>();
+    if (!details) return m;
+    for (const di of details.discoveredIslands ?? []) {
+      m.set(di.island.name, di.islandState as 'KNOWN' | 'DISCOVERED');
+    }
+    return m;
+  });
+
   get gridArray(): (Cell | null)[][] {
     const byCoord = new Map<string, Cell>();
     for (const c of this.game.knownCells().values()) {
@@ -230,6 +245,60 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   hasZone(cell: Cell | null): boolean {
     return !!cell && cell.zone > 0;
   }
+
+  /** Retourne l'état de découverte d'une île pour le joueur courant. */
+  getIslandState(cell: Cell | null): 'KNOWN' | 'DISCOVERED' | null {
+    if (!cell?.island) return null;
+    return this.discoveredIslandMap().get(cell.island.name) ?? null;
+  }
+
+  /** Classe CSS complète d'une tuile (type terrain + navire + état île). */
+  getTileClass(cell: Cell | null): string {
+    let cls = 'tile ' + this.getCellClass(cell);
+    if (this.isShipHere(cell)) cls += ' tile-ship';
+    if (cell?.island) {
+      const s = this.getIslandState(cell);
+      if (s === 'KNOWN')       cls += ' tile-island-known';
+      else if (s === 'DISCOVERED') cls += ' tile-island-discovered';
+    }
+    return cls;
+  }
+
+  /** Titre accessible complet d'une tuile (screen readers, tooltip natif). */
+  getTileTitle(cell: Cell | null): string {
+    if (!cell || !cell.type) return 'Inexploré';
+    const parts: string[] = [`${cell.type} (${cell.x}, ${cell.y})`];
+    if (cell.zone > 0) parts.push(`Zone ${cell.zone} — risque 20 %`);
+    if (cell.island) {
+      const s = this.getIslandState(cell);
+      const sl = s === 'KNOWN' ? ' — validée' : s === 'DISCOVERED' ? ' — aperçue' : '';
+      parts.push(`Île : ${cell.island.name}${sl}`);
+      if (cell.island.bonusQuotient > 0) parts.push(`+${cell.island.bonusQuotient} quotient`);
+    }
+    if ((cell.ships?.length ?? 0) > 0) parts.push(`${cell.ships.length} navire(s) présent(s)`);
+    return parts.join(' — ');
+  }
+
+  // ── Survol des tuiles (délégation sur le viewport) ────────────────────────
+
+  onViewportMouseMove(e: MouseEvent): void {
+    if (this.povMode() || this.isDragging) { this.hoveredCell.set(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const col  = Math.floor((e.clientX - rect.left) / this.tilePx);
+    const row  = Math.floor((e.clientY - rect.top)  / this.tilePx);
+    if (col >= 0 && col < this.zoomCols() && row >= 0 && row < this.zoomRows) {
+      const cell = this.game.knownCells().get(`${this.viewStartX + col},${this.viewStartY + row}`) ?? null;
+      this.hoveredCell.set(cell);
+      const offX = e.clientX + 240 > window.innerWidth  ? -246 : 14;
+      const offY = e.clientY + 210 > window.innerHeight ? -216 : 14;
+      this.tooltipX.set(e.clientX + offX);
+      this.tooltipY.set(e.clientY + offY);
+    } else {
+      this.hoveredCell.set(null);
+    }
+  }
+
+  onViewportMouseLeave(): void { this.hoveredCell.set(null); }
 
   // ── Plein écran ───────────────────────────────────────────────────────────
 

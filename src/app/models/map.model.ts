@@ -19,7 +19,7 @@ export interface Cell {
   id: string;
   x: number;
   y: number;
-  type: 'SEA' | 'SAND' | null; // null = cellule non encore découverte
+  type: 'SEA' | 'SAND' | 'ROCKS' | null; // null = cellule non encore découverte
   zone: number;
   ships: Ship[];
   island?: Island; // présent uniquement sur les cellules SAND
