@@ -148,6 +148,39 @@
   max-width: 100%;
 }
 
+/* Tracker live */
+.btn-tracker {
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-tracker:hover { background: rgba(56, 182, 255, 0.08); border-color: var(--blue); color: var(--blue); }
+
+.btn-tracker--running {
+  border-color: var(--blue) !important;
+  color: var(--blue) !important;
+}
+
+/* Point clignotant "live" */
+.tracker-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+  animation: tracker-blink 1s step-start infinite;
+}
+@keyframes tracker-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.tracker-status { color: var(--blue); }
+.tracker-error  { color: var(--red); }
+
 @media (max-width: 900px) {
   .control-panel { gap: 20px; padding: 8px 12px; }
   .btn-action { padding: 8px 10px; font-size: 0.75rem; }

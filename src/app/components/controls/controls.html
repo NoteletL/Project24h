@@ -47,6 +47,21 @@
       {{ bot.isRunning() ? '🤖 Bot ON' : '🤖 Bot OFF' }}
     </button>
 
+    <!-- Suivi live de la position du bateau -->
+    <button
+      class="btn-action btn-tracker"
+      [class.btn-tracker--running]="tracker.isRunning()"
+      (click)="tracker.toggle()"
+      [attr.aria-pressed]="tracker.isRunning()"
+      [title]="tracker.isRunning() ? 'Désactiver le suivi live (L)' : 'Activer le suivi live — rafraîchissement toutes les 5 s (L)'"
+      aria-label="Suivi de la position du bateau en temps réel">
+      @if (tracker.isRunning()) {
+        <span class="tracker-dot" aria-hidden="true"></span> Live ON
+      } @else {
+        📡 Live OFF
+      }
+    </button>
+
     <app-help-panel />
   </div>
 
@@ -54,6 +69,18 @@
   @if (bot.lastStatus()) {
     <div class="bot-status" aria-live="polite" aria-atomic="true">
       {{ bot.lastStatus() }}
+    </div>
+  }
+
+  <!-- Statut tracker -->
+  @if (tracker.isRunning() && tracker.lastUpdate()) {
+    <div class="bot-status tracker-status" aria-live="polite" aria-atomic="true">
+      📡 Mis à jour {{ tracker.lastUpdate() | date:'HH:mm:ss' }}
+    </div>
+  }
+  @if (tracker.error()) {
+    <div class="bot-status tracker-error" role="alert">
+      ⚠️ Tracker : {{ tracker.error() }}
     </div>
   }
 </div>

@@ -11,6 +11,7 @@ import { GameStateService } from './services/game-state.service';
 import { MapService } from './services/map.service';
 import { BotService } from './services/bot.service';
 import { PriceHistoryService } from './services/price-history.service';
+import { ShipTrackerService } from './services/ship-tracker.service';
 
 @Component({
   selector: 'app-root',
@@ -25,6 +26,7 @@ export class App implements OnInit {
   readonly game = inject(GameStateService);
   private readonly bot          = inject(BotService);
   private readonly priceHistory = inject(PriceHistoryService);
+  readonly tracker              = inject(ShipTrackerService);
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
@@ -103,6 +105,7 @@ export class App implements OnInit {
     this.game.log('Déconnecté.', 'info');
     this.bot.stop();
     this.priceHistory.stop();
+    this.tracker.stop();
   }
 
   // --- Actions ---
@@ -299,11 +302,14 @@ export class App implements OnInit {
       this.refreshPlayer(),
       this.refreshResources(),
       this.refreshShip(),
+      this.loadMap(),
     ]);
     // Démarrer le polling des prix si la marketplace est débloquée
     if (this.game.playerDetails()?.marketPlaceDiscovered) {
       this.priceHistory.start();
     }
+    // Démarrer le suivi automatique du bateau
+    this.tracker.start();
     this.game.log('Données mises à jour.', 'info');
   }
 

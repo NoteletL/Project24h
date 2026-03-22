@@ -39,10 +39,7 @@
   white-space: nowrap;
 }
 
-.is-fullscreen .map-coords {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
+.is-fullscreen .map-coords { color: var(--text-secondary); font-size: 0.8rem; }
 
 .offset-badge {
   margin-left: 6px;
@@ -54,11 +51,7 @@
 }
 
 /* ── Zoom controls ────────────────────────────────────────────────────────── */
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
+.zoom-controls { display: flex; align-items: center; gap: 2px; }
 
 .btn-zoom {
   width: 28px;
@@ -76,28 +69,12 @@
   transition: background 0.12s, border-color 0.12s;
   user-select: none;
 }
+.btn-zoom:hover:not(:disabled) { background: var(--accent); border-color: var(--green); }
+.btn-zoom:disabled              { opacity: 0.35; cursor: not-allowed; }
+.btn-zoom:focus-visible         { outline: 3px solid var(--green); outline-offset: 2px; }
 
-.btn-zoom:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--green);
-}
-
-.btn-zoom:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.btn-zoom:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
-
-.btn-zoom-label {
-  width: 48px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-}
-
-.btn-zoom-label:hover {
-  color: var(--text-primary);
-}
+.btn-zoom-label { width: 48px; font-size: 0.7rem; color: var(--text-secondary); }
+.btn-zoom-label:hover { color: var(--text-primary); }
 
 /* ── Recentrer ────────────────────────────────────────────────────────────── */
 .btn-recenter {
@@ -111,8 +88,7 @@
   transition: background 0.15s;
   flex-shrink: 0;
 }
-
-.btn-recenter:hover { background: rgba(78, 204, 163, 0.15); }
+.btn-recenter:hover        { background: rgba(78, 204, 163, 0.15); }
 .btn-recenter:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
 
 /* ── Bouton plein écran ────────────────────────────────────────────────────── */
@@ -128,17 +104,29 @@
   flex-shrink: 0;
   line-height: 1;
 }
-
-.btn-fullscreen:hover { background: rgba(83, 52, 131, 0.35); border-color: var(--accent-light); }
-.btn-fullscreen:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
-
-.is-fullscreen .btn-fullscreen {
-  border-color: var(--red);
-  color: var(--red);
-}
+.btn-fullscreen:hover               { background: rgba(83, 52, 131, 0.35); }
+.btn-fullscreen:focus-visible        { outline: 3px solid var(--green); outline-offset: 2px; }
+.is-fullscreen .btn-fullscreen      { border-color: var(--red); color: var(--red); }
 .is-fullscreen .btn-fullscreen:hover { background: rgba(233, 69, 96, 0.15); }
 
-/* ── Viewport — remplit son conteneur, taille calculée par ResizeObserver ── */
+/* ── Bouton zones ──────────────────────────────────────────────────────────── */
+.btn-zones {
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-glow);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.btn-zones:hover        { border-color: var(--green); color: var(--text-primary); }
+.btn-zones--on          { border-color: var(--green); color: var(--green); background: rgba(78, 204, 163, 0.1); }
+.btn-zones:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+
+/* ── Viewport ─────────────────────────────────────────────────────────────── */
 .map-viewport {
   display: grid;
   gap: 0;
@@ -153,7 +141,6 @@
   flex-shrink: 0;
   transition: border-color 0.15s;
 }
-
 .map-viewport:hover    { border-color: var(--green); }
 .map-viewport.dragging { cursor: grabbing; }
 
@@ -176,8 +163,9 @@
   padding: 0;
 }
 
-/* ── Tuiles — taille définie inline via tilePx() ────────────────────────── */
+/* ── Tuiles ───────────────────────────────────────────────────────────────── */
 .tile {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,8 +175,37 @@
   box-sizing: border-box;
   overflow: hidden;
 }
-
 .tile:hover { border-color: rgba(78, 204, 163, 0.35); z-index: 1; }
+
+/* Overlay coloré de zone — transition douce à la découverte */
+.tile-zone-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.35s ease;
+}
+
+/* Icône (bateau, île…) au-dessus de l'overlay */
+.tile-icon {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+}
+
+/* Numéro de zone — coin bas-droit, toujours lisible */
+.tile-zone-label {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 1);
+  transition: color 0.35s ease;
+}
 
 .tile-sea   { background: #0c2340; }
 .tile-sand  { background: #8b7340; }
@@ -207,141 +224,45 @@
   50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
 }
 
-
-/* ── Toolbar ──────────────────────────────────────────────────────────────── */
-.map-toolbar {
+/* ── Légende des zones ────────────────────────────────────────────────────── */
+.zone-legend {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 5px;
   width: 100%;
-  padding: 0 4px;
+  padding: 2px 4px;
   flex-shrink: 0;
 }
 
-.map-coords {
-  font-size: 0.75rem;
+.zone-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.zone-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.zones-count {
+  font-size: 0.68rem;
   color: var(--text-muted);
-  flex: 1;
-  white-space: nowrap;
+  margin-left: 2px;
 }
 
-.offset-badge {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(240, 192, 64, 0.15);
-  color: var(--gold);
-  font-size: 0.7rem;
+/* Légende en plein écran : intégrée au HUD du bas */
+.map-wrapper.is-fullscreen .zone-legend {
+  position: absolute;
+  bottom: 44px;
+  left: 0;
+  right: 0;
+  padding: 4px 14px;
+  background: rgba(10, 10, 26, 0.6);
+  backdrop-filter: blur(4px);
 }
-
-/* ── Zoom controls ────────────────────────────────────────────────────────── */
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.btn-zoom {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-  user-select: none;
-}
-
-.btn-zoom:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--green);
-}
-
-.btn-zoom:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.btn-zoom-label {
-  width: 48px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-}
-
-.btn-zoom-label:hover {
-  color: var(--text-primary);
-}
-
-/* ── Recentrer ────────────────────────────────────────────────────────────── */
-.btn-recenter {
-  padding: 4px 8px;
-  font-size: 0.85rem;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--green);
-  border-radius: 6px;
-  color: var(--green);
-  cursor: pointer;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-
-.btn-recenter:hover {
-  background: rgba(78, 204, 163, 0.15);
-}
-
-/* ── Viewport — taille FIXE, les tuiles s'adaptent ─────────────────────── */
-.map-viewport {
-  display: grid;
-  gap: 0;
-  width: 720px;
-  height: 528px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid var(--accent);
-  border-radius: 4px;
-  cursor: grab;
-  user-select: none;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: border-color 0.15s;
-}
-
-.map-viewport:hover    { border-color: var(--green); }
-.map-viewport.dragging { cursor: grabbing; }
-
-/* ── Tuiles — taille définie inline via tilePx() ────────────────────────── */
-.tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  transition: border-color 0.1s;
-  user-select: none;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.tile:hover { border-color: rgba(78, 204, 163, 0.35); z-index: 1; }
-
-.tile-sea   { background: #0c2340; }
-.tile-sand  { background: #8b7340; }
-.tile-rocks { background: #4a4a4a; }
-.tile-fog   { background: #0a0a12; }
-
-.tile-ship {
-  background: #1a3a2a !important;
-  box-shadow: inset 0 0 14px rgba(78, 204, 163, 0.6);
-  border-color: var(--green) !important;
-  animation: ship-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes ship-pulse {
-  0%, 100% { box-shadow: inset 0 0 12px rgba(78, 204, 163, 0.4); }
-  50%       { box-shadow: inset 0 0 22px rgba(78, 204, 163, 0.9); }
-}
-

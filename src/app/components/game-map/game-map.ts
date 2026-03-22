@@ -1,4 +1,4 @@
-import { Component, inject, signal, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, HostListener, ElementRef, ViewChild, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { Cell } from '../../models/map.model';
 
@@ -28,6 +28,7 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly viewOffsetY  = signal(0);
   readonly zoomCols     = signal(ZOOM_DEFAULT);
   readonly isFullscreen = signal(false);
+  readonly showZones    = signal(true);
 
   /** Dimensions réelles du viewport mesurées par ResizeObserver */
   readonly viewportW = signal(DEFAULT_W);
@@ -75,7 +76,23 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.viewCenterY - Math.floor(this.zoomRows / 2);
   }
 
-  // ...existing code (gridArray, zoom, pan, cell helpers)...
+  /**
+   * Liste triée des zones découvertes avec leur couleur — recalculée
+   * automatiquement à chaque nouvelle cellule ajoutée.
+   */
+  readonly knownZones = computed(() => {
+    const zones = new Set<number>();
+    for (const c of this.game.knownCells().values()) {
+      if (c.zone > 0) zones.add(c.zone);
+    }
+    return Array.from(zones)
+      .sort((a, b) => a - b)
+      .map(z => ({
+        zone:       z,
+        tintColor:  this.getZoneTintColor(z),
+        labelColor: this.getZoneLabelColor(z),
+      }));
+  });
 
   get gridArray(): (Cell | null)[][] {
     const byCoord = new Map<string, Cell>();
@@ -133,6 +150,31 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!cell || !cell.type) return '';
     if (this.isShipHere(cell)) return '⛵';
     return cell.type === 'SAND' ? '🏝️' : '';
+  }
+
+  // ── Zones ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Distribution d'angles par le nombre d'or → teintes maximalement distinctes.
+   * Zone 0 ou null = pas de teinte.
+   */
+  private zoneHue(zone: number): number {
+    return Math.round((zone * 137.508) % 360);
+  }
+
+  /** Fond semi-transparent unique par zone, superposé à la couleur de terrain. */
+  getZoneTintColor(zone: number): string {
+    return `hsla(${this.zoneHue(zone)}, 65%, 50%, 0.22)`;
+  }
+
+  /** Couleur vive du label de zone, lisible sur fond sombre. */
+  getZoneLabelColor(zone: number): string {
+    return `hsla(${this.zoneHue(zone)}, 90%, 80%, 1)`;
+  }
+
+  /** Retourne vrai si la cellule possède un numéro de zone valide (>0). */
+  hasZone(cell: Cell | null): boolean {
+    return !!cell && cell.zone > 0;
   }
 
   // ── Plein écran ───────────────────────────────────────────────────────────

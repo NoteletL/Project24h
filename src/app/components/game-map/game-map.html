@@ -12,12 +12,25 @@
     }
 
     <div class="zoom-controls">
-      <button class="btn-zoom" (click)="zoomIn()"  [disabled]="zoomCols() <= zoomMin" title="Zoom avant — moins de cases (molette ↑)" aria-label="Zoom avant">＋</button>
+      <button class="btn-zoom" (click)="zoomIn()"  [disabled]="zoomCols() <= zoomMin" title="Zoom avant (molette ↑)" aria-label="Zoom avant">＋</button>
       <button class="btn-zoom btn-zoom-label" (click)="zoomReset()" title="Zoom par défaut" aria-label="Réinitialiser le zoom">{{ zoomCols() }}×{{ zoomRows }}</button>
-      <button class="btn-zoom" (click)="zoomOut()" [disabled]="zoomCols() >= zoomMax" title="Zoom arrière — plus de cases (molette ↓)" aria-label="Zoom arrière">－</button>
+      <button class="btn-zoom" (click)="zoomOut()" [disabled]="zoomCols() >= zoomMax" title="Zoom arrière (molette ↓)" aria-label="Zoom arrière">－</button>
     </div>
 
     <button class="btn-recenter" (click)="recenter()" title="Recentrer sur le bateau" aria-label="Recentrer la carte sur le bateau">🎯</button>
+
+    <button
+      class="btn-zones"
+      (click)="showZones.set(!showZones())"
+      [class.btn-zones--on]="showZones()"
+      [attr.aria-pressed]="showZones()"
+      [attr.aria-label]="showZones() ? 'Masquer les zones' : 'Afficher les zones'"
+      title="Afficher / masquer les zones">
+      🗺 Zones
+      @if (knownZones().length) {
+        <span class="zones-count" aria-hidden="true">({{ knownZones().length }})</span>
+      }
+    </button>
 
     <button
       class="btn-fullscreen"
@@ -29,7 +42,19 @@
     </button>
   </div>
 
-  <!-- Viewport — taille pilotée par le CSS + mesurée par ResizeObserver -->
+  <!-- Légende des zones (visible uniquement si zones activées et au moins une zone connue) -->
+  @if (showZones() && knownZones().length) {
+    <div class="zone-legend" role="list" aria-label="Légende des zones découvertes">
+      @for (z of knownZones(); track z.zone) {
+        <span class="zone-legend-item" role="listitem">
+          <span class="zone-legend-swatch" aria-hidden="true" [style.background]="z.tintColor" [style.border-color]="z.labelColor"></span>
+          <span [style.color]="z.labelColor">{{ z.zone }}</span>
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Viewport -->
   <div #viewport
     class="map-viewport"
     [class.dragging]="isDragging"
@@ -40,14 +65,31 @@
     (wheel)="onWheel($event)">
 
     @for (row of gridArray; track $index) {
-      @for (cell of row; track $index) {
+      @for (cell of row; track (cell ? cell.id : ($index + '_null'))) {
         <div class="tile"
           [class]="'tile ' + getCellClass(cell) + (isShipHere(cell) ? ' tile-ship' : '')"
           [style.width]="tilePx + 'px'"
           [style.height]="tilePx + 'px'"
           [style.font-size]="tileFontSize"
-          [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
-          {{ getCellIcon(cell) }}
+          [title]="cell ? cell.type + ' (' + cell.x + ',' + cell.y + ')' + (cell.zone > 0 ? ' — Zone ' + cell.zone : '') + (cell.island ? ' — ' + cell.island.name : '') : 'Inexploré'">
+
+          <!-- Fond coloré de zone -->
+          @if (showZones() && hasZone(cell)) {
+            <span class="tile-zone-overlay" aria-hidden="true"
+              [style.background]="getZoneTintColor(cell!.zone)">
+            </span>
+          }
+
+          <!-- Icône -->
+          <span class="tile-icon" aria-hidden="true">{{ getCellIcon(cell) }}</span>
+
+          <!-- Numéro de zone (tuile ≥ 22 px) -->
+          @if (showZones() && hasZone(cell) && tilePx >= 22) {
+            <span class="tile-zone-label" aria-hidden="true"
+              [style.color]="getZoneLabelColor(cell!.zone)">
+              {{ cell!.zone }}
+            </span>
+          }
         </div>
       }
     }

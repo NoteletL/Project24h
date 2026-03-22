@@ -1,17 +1,20 @@
 import { Component, inject, output, HostListener } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { HelpPanelComponent } from '../help-panel/help-panel';
 import { BotService } from '../../services/bot.service';
+import { ShipTrackerService } from '../../services/ship-tracker.service';
 
 @Component({
   selector: 'app-controls',
   standalone: true,
-  imports: [HelpPanelComponent],
+  imports: [HelpPanelComponent, DatePipe],
   templateUrl: './controls.html',
   styleUrl: './controls.css',
 })
 export class ControlsComponent {
-  readonly action = output<string>();
-  readonly bot    = inject(BotService);
+  readonly action  = output<string>();
+  readonly bot     = inject(BotService);
+  readonly tracker = inject(ShipTrackerService);
 
   private keyMap: Record<string, string> = {
     'ArrowUp': 'N', 'ArrowDown': 'S', 'ArrowLeft': 'W', 'ArrowRight': 'E',
@@ -30,10 +33,16 @@ export class ControlsComponent {
   @HostListener('document:keydown', ['$event'])
   onKeydown(event: KeyboardEvent) {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-    // P : toggle bot (géré directement ici, pas émis vers app.ts)
+    // P : toggle bot
     if (event.key === 'p' || event.key === 'P') {
       event.preventDefault();
       this.bot.toggle();
+      return;
+    }
+    // L : toggle suivi live du bateau
+    if (event.key === 'l' || event.key === 'L') {
+      event.preventDefault();
+      this.tracker.toggle();
       return;
     }
     const action = this.keyMap[event.key];
