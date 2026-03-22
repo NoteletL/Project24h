@@ -12,11 +12,21 @@ import { MapService } from './services/map.service';
 import { BotService } from './services/bot.service';
 import { PriceHistoryService } from './services/price-history.service';
 import { ShipTrackerService } from './services/ship-tracker.service';
+import { RecapPanelComponent } from './components/recap-panel/recap-panel';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, GameMapComponent, ControlsComponent, LogPanelComponent, MarketplaceComponent, MarketDashboardComponent, BrokerPanelComponent],
+  imports: [
+    FormsModule,
+    GameMapComponent,
+    ControlsComponent,
+    LogPanelComponent,
+    MarketplaceComponent,
+    MarketDashboardComponent,
+    BrokerPanelComponent,
+    RecapPanelComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -24,17 +34,15 @@ export class App implements OnInit {
   private api = inject(ApiService);
   private mapService = inject(MapService);
   readonly game = inject(GameStateService);
-  private readonly bot          = inject(BotService);
+  private readonly bot = inject(BotService);
   private readonly priceHistory = inject(PriceHistoryService);
-  readonly tracker              = inject(ShipTrackerService);
+  readonly tracker = inject(ShipTrackerService);
 
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
 
-  /** Vue active : carte générale, dashboard marketplace ou broker */
-  readonly activeView = signal<'map' | 'market' | 'broker'>('map');
-
-  setView(view: 'map' | 'market' | 'broker'): void {
+  readonly activeView = signal<'map' | 'market' | 'broker' | 'recap'>('map');
+  setView(view: 'map' | 'market' | 'broker' | 'recap'): void {
     this.activeView.set(view);
   }
 
@@ -116,12 +124,24 @@ export class App implements OnInit {
       await this.handleMove(action as Direction);
     } else {
       switch (action) {
-        case 'build':         await this.handleBuild(); break;
-        case 'upgrade-ship':  await this.handleUpgradeShip(); break;
-        case 'refresh':       await this.refreshAll(); break;
-        case 'show-islands':  await this.showIslands(); break;
-        case 'show-market':   this.setView('market'); break;
-        case 'show-taxes':    await this.showTaxes(); break;
+        case 'build':
+          await this.handleBuild();
+          break;
+        case 'upgrade-ship':
+          await this.handleUpgradeShip();
+          break;
+        case 'refresh':
+          await this.refreshAll();
+          break;
+        case 'show-islands':
+          await this.showIslands();
+          break;
+        case 'show-market':
+          this.setView('market');
+          break;
+        case 'show-taxes':
+          await this.showTaxes();
+          break;
       }
     }
   }
@@ -142,20 +162,25 @@ export class App implements OnInit {
         this.game.ship.set({ ...ship, availableMove: res.energy, currentPosition: res.position });
       }
 
-      this.game.log(`${dir} ✓ — Énergie: ${res.energy} | +${res.discoveredCells?.length ?? 0} cell(s)`, 'action');
+      this.game.log(
+        `${dir} ✓ — Énergie: ${res.energy} | +${res.discoveredCells?.length ?? 0} cell(s)`,
+        'action',
+      );
 
       // Recentrer la vue sur le bateau (sauf si l'utilisateur a panné manuellement)
       this.gameMap?.recenterOnMove();
 
       // 3. Persistance backend map (fire & forget — ne bloque pas l'UI)
       if (res.position) {
-        this.mapService.updateMap({
-          discoveredCells: res.discoveredCells ?? [],
-          position: res.position,
-        }).subscribe({
-          next: (mapState) => this.game.mapState.set(mapState),
-          error: (err) => this.game.log(`Map backend: ${err.message}`, 'warning'),
-        });
+        this.mapService
+          .updateMap({
+            discoveredCells: res.discoveredCells ?? [],
+            position: res.position,
+          })
+          .subscribe({
+            next: (mapState) => this.game.mapState.set(mapState),
+            error: (err) => this.game.log(`Map backend: ${err.message}`, 'warning'),
+          });
       }
     } catch (e: any) {
       this.game.log(`Erreur déplacement ${dir}: ${e.message}`, 'error');
@@ -193,7 +218,10 @@ export class App implements OnInit {
       }
       if (state.currentPosition) {
         this.game.addCells([state.currentPosition]);
-        this.game.log(`⛵ Position bateau : (${state.currentPosition.x}, ${state.currentPosition.y}) — énergie : ${state.availableMove}`, 'info');
+        this.game.log(
+          `⛵ Position bateau : (${state.currentPosition.x}, ${state.currentPosition.y}) — énergie : ${state.availableMove}`,
+          'info',
+        );
       }
     } catch {
       // Aucun bateau encore construit — silencieux
@@ -210,7 +238,9 @@ export class App implements OnInit {
         const next = await this.api.getNextShipLevel();
         this.pendingShipUpgrade = next;
         const cost = next.costResources
-          ? Object.entries(next.costResources).map(([k, v]) => `${v} ${k}`).join(', ')
+          ? Object.entries(next.costResources)
+              .map(([k, v]) => `${v} ${k}`)
+              .join(', ')
           : '?';
         const html = `
           <p>Niveau actuel : <strong>${this.game.ship()?.level.name ?? '?'}</strong></p>
@@ -254,7 +284,9 @@ export class App implements OnInit {
         this.game.showModal('💸 Taxes', '<p>Aucune taxe en cours. Vous êtes en règle ✅</p>');
         return;
       }
-      const html = taxes.map(t => `
+      const html = taxes
+        .map(
+          (t) => `
         <div style="padding:8px 0;border-bottom:1px solid #2a2a3e;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <span style="color:${t.state === 'DUE' ? 'var(--red)' : 'var(--green)'}">
             ${t.state === 'DUE' ? '🔴 À PAYER' : '✅ PAYÉE'}
@@ -262,8 +294,10 @@ export class App implements OnInit {
           <strong>${t.type}</strong>
           <span style="color:var(--gold)">💰 ${t.amount} OR</span>
           ${t.remainingTime > 0 ? `<span style="color:var(--text-muted)">⏳ ${t.remainingTime}s</span>` : ''}
-        </div>`).join('');
-      const due = taxes.filter(t => t.state === 'DUE');
+        </div>`,
+        )
+        .join('');
+      const due = taxes.filter((t) => t.state === 'DUE');
       const title = `💸 Taxes${due.length ? ` — ${due.length} à payer` : ''}`;
       this.game.showModal(title, html);
     } catch (e: any) {
@@ -279,18 +313,23 @@ export class App implements OnInit {
   private async showIslands() {
     const details = this.game.playerDetails();
     if (!details) {
-      this.game.log('Données joueur non chargées, rafraîchissez d\'abord.', 'warning');
+      this.game.log("Données joueur non chargées, rafraîchissez d'abord.", 'warning');
       return;
     }
     const islands = details.discoveredIslands;
-    const html = islands.length === 0
-      ? '<p>Aucune île découverte pour l\'instant.</p>'
-      : islands.map(di => `
+    const html =
+      islands.length === 0
+        ? "<p>Aucune île découverte pour l'instant.</p>"
+        : islands
+            .map(
+              (di) => `
           <div style="padding:6px 0;border-bottom:1px solid #333;">
             <strong>${di.islandState === 'KNOWN' ? '✅' : '👁️'} ${di.island.name}</strong>
             <span style="color:#888;margin-left:8px;">Bonus: +${di.island.bonusQuotient}</span>
             <span style="color:var(--blue);margin-left:8px;">${di.islandState}</span>
-          </div>`).join('');
+          </div>`,
+            )
+            .join('');
     this.game.showModal(`🏝️ Îles découvertes (${islands.length})`, html);
   }
 
@@ -315,7 +354,7 @@ export class App implements OnInit {
 
   /** Charge (ou recharge) la carte depuis le backend map (localhost:8080) */
   private loadMap(): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this.mapService.getMap().subscribe({
         next: (mapState) => {
           this.game.mapState.set(mapState);

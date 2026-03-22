@@ -117,6 +117,15 @@
             <span class="nav-label">Broker</span>
           </button>
         </li>
+        <li>
+          <button
+            [attr.aria-current]="activeView() === 'recap' ? 'page' : null"
+            (click)="setView('recap')"
+            [attr.aria-label]="activeView() === 'recap' ? 'Récapitulatif (actif)' : 'Récapitulatif'">
+            <span aria-hidden="true">📊</span>
+            <span class="nav-label">Récap</span>
+          </button>
+        </li>
       </ul>
     </nav>
 
@@ -142,6 +151,8 @@
       } @else if (activeView() === 'broker') {
         <!-- Vue Broker AMQP -->
         <app-broker-panel />
+      } @else if (activeView() === 'recap') {
+        <app-recap-panel />
       }
 
     </main>

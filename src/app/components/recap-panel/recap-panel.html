@@ -1,0 +1,306 @@
+<div class="recap-panel" aria-labelledby="recap-title">
+
+  <div class="panel-header">
+    <h2 id="recap-title">📊 Récapitulatif</h2>
+    @if (tracker.lastUpdate()) {
+      <span class="last-update" aria-live="polite">
+    Màj {{ tracker.lastUpdate() | date:'HH:mm:ss' }}
+    </span>
+    }
+  </div>
+
+  <div class="accordion-list">
+
+    <!-- ═══════════════════════════ BATEAU & JOUEUR ═══════════════════════════ -->
+    <div class="accordion-item">
+      <h3 class="accordion-heading">
+        <button id="acc-ship" class="accordion-trigger"
+                [attr.aria-expanded]="isSectionOpen('ship')"
+                aria-controls="acc-ship-body"
+                (click)="toggleSection('ship')">
+          <span aria-hidden="true">⛵</span> Bateau &amp; Joueur
+          <span class="chevron" [class.open]="isSectionOpen('ship')" aria-hidden="true">▾</span>
+        </button>
+      </h3>
+      <div id="acc-ship-body" role="region" aria-labelledby="acc-ship"
+           class="accordion-content" [hidden]="!isSectionOpen('ship')">
+
+        @if (game.ship(); as ship) {
+          <dl class="stat-grid">
+            <div class="stat-row">
+              <dt>Niveau</dt>
+              <dd>{{ ship.level?.name ?? '—' }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Position</dt>
+              <dd>
+                ({{ ship.currentPosition?.x ?? '?' }}, {{ ship.currentPosition?.y ?? '?' }})
+                @if ((ship.currentPosition?.zone ?? 0) > 0) {
+                  <span class="zone-chip"
+                        [style.background]="zoneColor(ship.currentPosition.zone)"
+                        [style.color]="zoneLabelColor(ship.currentPosition.zone)">
+    Zone {{ ship.currentPosition.zone }}
+    </span>
+                }
+              </dd>
+            </div>
+            <div class="stat-row">
+              <dt>Énergie</dt>
+              <dd>{{ ship.availableMove }} / {{ ship.level?.maxMovement ?? '?' }} mvt</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Vitesse</dt>
+              <dd>{{ ship.level?.speed ?? '—' }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Visibilité</dt>
+              <dd>{{ ship.level?.visibilityRange ?? '—' }} cases</dd>
+            </div>
+          </dl>
+        } @else {
+          <p class="empty">Aucun bateau construit.</p>
+        }
+
+        @if (game.playerDetails(); as p) {
+          <div class="separator" aria-hidden="true"></div>
+          <dl class="stat-grid">
+            <div class="stat-row">
+              <dt>Équipe</dt>
+              <dd>🏴 {{ p.name }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Or</dt>
+              <dd class="val--gold">💰 {{ p.money }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Quotient</dt>
+              <dd>📈 {{ p.quotient }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Îles découvertes</dt>
+              <dd>🏝️ {{ p.discoveredIslands.length }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Marketplace</dt>
+              <dd>{{ p.marketPlaceDiscovered ? '✅ Débloquée' : '🔒 Verrouillée' }}</dd>
+            </div>
+          </dl>
+        }
+
+        @if (game.resources().length) {
+          <div class="separator" aria-hidden="true"></div>
+          <p class="subsection-title">Stocks</p>
+          <dl class="stat-grid">
+            @for (r of game.resources(); track r.type) {
+              <div class="stat-row">
+                <dt>{{ resourceIcon(r.type) }} {{ r.type }}</dt>
+                <dd>{{ r.quantity }}</dd>
+              </div>
+            }
+          </dl>
+        }
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ EXPLORATION ══════════════════════════════ -->
+    <div class="accordion-item">
+      <h3 class="accordion-heading">
+        <button id="acc-exp" class="accordion-trigger"
+                [attr.aria-expanded]="isSectionOpen('exploration')"
+                aria-controls="acc-exp-body"
+                (click)="toggleSection('exploration')">
+          <span aria-hidden="true">🗺️</span> Exploration
+          @if (mapStats().total) {
+            <span class="badge" aria-label="{{ mapStats().total }} cellules">{{ mapStats().total }}</span>
+          }
+          <span class="chevron" [class.open]="isSectionOpen('exploration')" aria-hidden="true">▾</span>
+        </button>
+      </h3>
+      <div id="acc-exp-body" role="region" aria-labelledby="acc-exp"
+           class="accordion-content" [hidden]="!isSectionOpen('exploration')">
+
+        <dl class="stat-grid">
+          <div class="stat-row">
+            <dt>Cellules totales</dt>
+            <dd>{{ mapStats().total }}</dd>
+          </div>
+          <div class="stat-row">
+            <dt>🌊 Mer</dt>
+            <dd>{{ mapStats().sea }}</dd>
+          </div>
+          <div class="stat-row">
+            <dt>🏝️ Île</dt>
+            <dd>{{ mapStats().sand }}</dd>
+          </div>
+          <div class="stat-row">
+            <dt>🌫️ Brouillard</dt>
+            <dd>{{ mapStats().fog }}</dd>
+          </div>
+          <div class="stat-row">
+            <dt>Zones découvertes</dt>
+            <dd>{{ mapStats().zones.length }}</dd>
+          </div>
+        </dl>
+
+        @if (mapStats().zones.length) {
+          <div class="separator" aria-hidden="true"></div>
+          <p class="subsection-title">Progression par zone</p>
+          <ol class="zone-progress-list" aria-label="Cellules découvertes par zone">
+            @for (z of mapStats().zones; track z.zone) {
+              <li class="zone-progress-item">
+                <div class="zone-progress-header">
+                  <span class="zone-num" [style.color]="zoneLabelColor(z.zone)">Zone {{ z.zone }}</span>
+                  <span class="zone-detail">{{ z.sea }} mer · {{ z.sand }} île</span>
+                  <span class="zone-count">{{ z.count }} cells</span>
+                </div>
+                <div class="zone-bar" role="presentation">
+                  <div class="zone-bar-fill"
+                       [style.width.%]="(z.count / mapStats().maxCells) * 100"
+                       [style.background]="zoneColor(z.zone)">
+                  </div>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ TRANSACTIONS ════════════════════════════ -->
+    <div class="accordion-item">
+      <h3 class="accordion-heading">
+        <button id="acc-tx" class="accordion-trigger"
+                [attr.aria-expanded]="isSectionOpen('transactions')"
+                aria-controls="acc-tx-body"
+                (click)="toggleSection('transactions')">
+          <span aria-hidden="true">💰</span> Transactions
+          @if (txStats().count) {
+            <span class="badge" aria-label="{{ txStats().count }} transactions">{{ txStats().count }}</span>
+          }
+          <span class="chevron" [class.open]="isSectionOpen('transactions')" aria-hidden="true">▾</span>
+        </button>
+      </h3>
+      <div id="acc-tx-body" role="region" aria-labelledby="acc-tx"
+           class="accordion-content" [hidden]="!isSectionOpen('transactions')">
+
+        @if (txStats().count === 0) {
+          <p class="empty">Aucune transaction cette session.</p>
+        } @else {
+          <!-- Résumé agrégé -->
+          <dl class="stat-grid">
+            <div class="stat-row">
+              <dt>Dépense totale</dt>
+              <dd class="val--gold">💰 {{ txStats().totalSpent }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>Unités achetées</dt>
+              <dd>{{ txStats().totalQty }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>dont 🤖 bot</dt>
+              <dd>{{ txStats().botQty }}</dd>
+            </div>
+            <div class="stat-row">
+              <dt>dont 👤 manuel</dt>
+              <dd>{{ txStats().manualQty }}</dd>
+            </div>
+          </dl>
+
+          @if (txStats().byResource.length) {
+            <div class="separator" aria-hidden="true"></div>
+            <p class="subsection-title">Par ressource</p>
+            <dl class="stat-grid">
+              @for (entry of txStats().byResource; track entry[0]) {
+                <div class="stat-row">
+                  <dt>{{ resourceIcon(entry[0]) }} {{ entry[0] }}</dt>
+                  <dd>{{ entry[1].qty }} u — 💰 {{ entry[1].cost }}</dd>
+                </div>
+              }
+            </dl>
+          }
+
+          <div class="separator" aria-hidden="true"></div>
+          <p class="subsection-title">Détail</p>
+          <div class="table-wrapper">
+            <table>
+              <caption class="sr-only">Historique complet des transactions marketplace</caption>
+              <thead>
+              <tr>
+                <th scope="col">Heure</th>
+                <th scope="col">Ressource</th>
+                <th scope="col">Qté</th>
+                <th scope="col">Prix/u</th>
+                <th scope="col">Total</th>
+                <th scope="col">Source</th>
+              </tr>
+              </thead>
+              <tbody>
+                @for (tx of game.transactions(); track tx.timestamp) {
+                  <tr>
+                    <td>{{ fmtTime(tx.timestamp) }}</td>
+                    <td>{{ resourceIcon(tx.resourceType) }} {{ tx.resourceType }}</td>
+                    <td>{{ tx.quantity }}</td>
+                    <td>💰 {{ tx.pricePerUnit }}</td>
+                    <td>💰 {{ tx.totalCost }}</td>
+                    <td [attr.aria-label]="tx.source === 'bot' ? 'Bot automatique' : 'Manuel'">
+                      {{ tx.source === 'bot' ? '🤖' : '👤' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ ÉVÉNEMENTS ═══════════════════════════════ -->
+    <div class="accordion-item">
+      <h3 class="accordion-heading">
+        <button id="acc-logs" class="accordion-trigger"
+                [attr.aria-expanded]="isSectionOpen('logs')"
+                aria-controls="acc-logs-body"
+                (click)="toggleSection('logs')">
+          <span aria-hidden="true">📋</span> Événements
+          @if (game.logs().length) {
+            <span class="badge" aria-label="{{ game.logs().length }} événements">{{ game.logs().length }}</span>
+          }
+          <span class="chevron" [class.open]="isSectionOpen('logs')" aria-hidden="true">▾</span>
+        </button>
+      </h3>
+      <div id="acc-logs-body" role="region" aria-labelledby="acc-logs"
+           class="accordion-content" [hidden]="!isSectionOpen('logs')">
+
+        <!-- Filtres -->
+        <div class="log-filters" role="group" aria-label="Filtrer les événements">
+          @for (f of ['all', 'action', 'info', 'warning', 'error']; track f) {
+            <button
+              class="filter-btn"
+              [class.filter-btn--active]="logFilter() === f"
+              (click)="logFilter.set(f)"
+              [attr.aria-pressed]="logFilter() === f">
+              {{ f === 'all' ? 'Tous' : f === 'action' ? '⚡ Action' : f === 'info' ? 'ℹ️ Info' : f === 'warning' ? '⚠️ Warning' : '❌ Erreur' }}
+            </button>
+          }
+        </div>
+
+        @if (filteredLogs().length === 0) {
+          <p class="empty">Aucun événement correspondant.</p>
+        } @else {
+          <ol class="log-list" aria-label="Journal des événements" reversed>
+            @for (entry of filteredLogs(); track entry.timestamp) {
+              <li class="log-entry" [class]="'log-entry ' + logTypeClass(entry.type)">
+                <time class="log-time" [attr.datetime]="entry.timestamp.toISOString()">
+                  {{ fmtTime(entry.timestamp) }}
+                </time>
+                <span class="log-icon" aria-hidden="true">{{ logTypeLabel(entry.type) }}</span>
+                <span class="log-msg">{{ entry.message }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+    </div>
+
+  </div>
+</div>
