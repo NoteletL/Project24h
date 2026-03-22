@@ -760,27 +760,9 @@
 .tooltip-state.discovered { color: var(--blue); }
 .tooltip-state.unknown    { color: var(--text-muted); }
 
-/* ── Zone à risque ─────────────────────────────────────────────────────── */
-.tooltip-danger {
-  border-left: 3px solid;
-  padding-left: 7px;
-}
-
-.tooltip-danger-title {
-  font-weight: 700;
-  font-size: 0.72rem;
-}
-
-.tooltip-danger-detail {
-  color: #ff6070;
-  font-size: 0.67rem;
-}
-
-.tooltip-danger-threats {
-  color: var(--text-muted);
-  font-size: 0.63rem;
-  line-height: 1.4;
-}
+/* ── Zone (identifiant de région) ──────────────────────────────────────── */
+.tooltip-zone-info  { /* héritage de .tooltip-section */ }
+.tooltip-zone-title { font-weight: 600; font-size: 0.70rem; }
 
 /* ── Navires ───────────────────────────────────────────────────────────── */
 .tooltip-ships-title {

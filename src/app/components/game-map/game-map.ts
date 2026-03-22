@@ -110,11 +110,15 @@ export class GameMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private prevShipY: number | null = null;
   private moveDirTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** Vrai si le navire est dans une zone à risque (zone numérotée ou présence d'autres navires). */
+  /**
+   * Vrai uniquement si d'autres navires sont présents sur la même case.
+   * Le champ `zone` est un identifiant de région (zone 1 = mer standard),
+   * pas un indicateur de danger — il ne doit pas déclencher les effets visuels.
+   */
   readonly inDanger = computed(() => {
     const pos = this.game.ship()?.currentPosition;
     if (!pos) return false;
-    return pos.zone > 0 || (pos.ships?.length ?? 0) > 0;
+    return (pos.ships?.length ?? 0) > 0;
   });
 
   /** Pourcentage d'énergie restante du navire (0–100). */

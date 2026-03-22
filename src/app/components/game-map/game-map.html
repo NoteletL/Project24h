@@ -446,16 +446,13 @@
         </div>
       }
 
-      <!-- Zone à risque -->
+      <!-- Numéro de zone (identifiant de région) -->
       @if (hCell.zone > 0) {
-        <div class="tooltip-section tooltip-danger"
-             [style.border-left-color]="getZoneLabelColor(hCell.zone)">
-          <div class="tooltip-danger-title"
+        <div class="tooltip-section tooltip-zone-info">
+          <div class="tooltip-zone-title"
                [style.color]="getZoneLabelColor(hCell.zone)">
-            ⚠️ Zone {{ hCell.zone }} — Zone à risque
+            🗺️ Zone {{ hCell.zone }}
           </div>
-          <div class="tooltip-danger-detail">20 % de risque par déplacement</div>
-          <div class="tooltip-danger-threats">⛈ Tempêtes &nbsp;·&nbsp; ☠️ Pirates &nbsp;·&nbsp; 🦑 Kraken &nbsp;·&nbsp; 🪨 Récifs</div>
         </div>
       }
 
