@@ -3,6 +3,7 @@ import { Ship, Resource, PlayerDetails } from './api.service';
 import { Cell, MapState } from '../models/map.model';
 
 const STORAGE_KEY = '3026_known_cells';
+const MAX_PERSISTED_CELLS = 2000; // limite pour ne pas exploser le quota localStorage
 
 export interface LogEntry {
   message: string;
@@ -37,7 +38,7 @@ export class GameStateService {
   // Resources
   readonly resources = signal<Resource[]>([]);
 
-  // Map — cellules connues, persistées dans localStorage
+  // Map — cellules connues (en mémoire, persistées partiellement dans localStorage)
   readonly knownCells = signal<Map<string, Cell>>(this.loadCellsFromStorage());
 
   // MapState complet retourné par le backend map (localhost:8080)
@@ -84,7 +85,40 @@ export class GameStateService {
   /** Efface toutes les cellules (mémoire + localStorage) */
   clearCells(): void {
     this.knownCells.set(new Map());
-    localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  }
+
+  /** Persiste un sous-ensemble de cellules (les plus proches du bateau) */
+  private persistCells(map: Map<string, Cell>): void {
+    try {
+      let entries = Array.from(map.entries());
+
+      // Si trop de cellules, garder celles autour du bateau
+      if (entries.length > MAX_PERSISTED_CELLS) {
+        const ship = this.ship();
+        const bx = ship?.currentPosition?.x ?? 0;
+        const by = ship?.currentPosition?.y ?? 0;
+
+        // Trier par distance au bateau, garder les plus proches
+        entries.sort((a, b) => {
+          const da = Math.abs(a[1].x - bx) + Math.abs(a[1].y - by);
+          const db = Math.abs(b[1].x - bx) + Math.abs(b[1].y - by);
+          return da - db;
+        });
+        entries = entries.slice(0, MAX_PERSISTED_CELLS);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      // QuotaExceededError — on tente avec moins de cellules
+      try {
+        const entries = Array.from(map.entries()).slice(0, 500);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      } catch {
+        // Abandonner la persistance silencieusement
+        try { localStorage.removeItem(STORAGE_KEY); } catch { /* rien */ }
+      }
+    }
   }
 
   private loadCellsFromStorage(): Map<string, Cell> {

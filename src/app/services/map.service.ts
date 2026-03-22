@@ -6,7 +6,7 @@ import { MapState, MovementUpdate } from '../models/map.model';
 @Injectable({ providedIn: 'root' })
 export class MapService {
   private http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:8080/api/map';
+  private readonly baseUrl = 'https://foreign-shape-down-particularly.trycloudflare.com/api/map';
 
   /**
    * GET /api/map

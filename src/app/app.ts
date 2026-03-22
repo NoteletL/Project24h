@@ -6,6 +6,7 @@ import { LogPanelComponent } from './components/log-panel/log-panel';
 import { MarketplaceComponent } from './components/marketplace/marketplace';
 import { MarketDashboardComponent } from './components/market-dashboard/market-dashboard';
 import { BrokerPanelComponent } from './components/broker-panel/broker-panel';
+import { Map3dComponent } from './components/three/map-3d.component';
 import { ApiService, API_CONFIG, Direction, Ship } from './services/api.service';
 import { GameStateService } from './services/game-state.service';
 import { MapService } from './services/map.service';
@@ -26,6 +27,7 @@ import { RecapPanelComponent } from './components/recap-panel/recap-panel';
     MarketDashboardComponent,
     BrokerPanelComponent,
     RecapPanelComponent,
+    Map3dComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -41,8 +43,10 @@ export class App implements OnInit {
   private readonly marketplaceModal = viewChild(MarketplaceComponent);
   private pendingShipUpgrade: Ship | null = null;
 
-  readonly activeView = signal<'map' | 'market' | 'broker' | 'recap'>('map');
-  setView(view: 'map' | 'market' | 'broker' | 'recap'): void {
+  /** Vue active : carte générale, dashboard marketplace ou broker */
+  readonly activeView = signal<'map' | '3d' | 'market' | 'broker' | 'recap'>('map');
+
+  setView(view: 'map' | '3d' | 'market' | 'broker' | 'recap'): void {
     this.activeView.set(view);
   }
 

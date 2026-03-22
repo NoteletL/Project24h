@@ -101,6 +101,15 @@
         </li>
         <li>
           <button
+            [attr.aria-current]="activeView() === '3d' ? 'page' : null"
+            (click)="setView('3d')"
+            [attr.aria-label]="activeView() === '3d' ? 'Vue 3D (actif)' : 'Vue 3D'">
+            <span aria-hidden="true">🎮</span>
+            <span class="nav-label">3D</span>
+          </button>
+        </li>
+        <li>
+          <button
             [attr.aria-current]="activeView() === 'market' ? 'page' : null"
             (click)="setView('market')"
             [attr.aria-label]="activeView() === 'market' ? 'Marketplace (actif)' : 'Marketplace'">
@@ -133,9 +142,21 @@
     <main id="main-content" class="main-content" tabindex="-1">
 
       @if (activeView() === 'map') {
-        <!-- Vue Carte -->
+        <!-- Vue Carte 2D -->
         <section class="map-section" aria-label="Carte du monde">
           <app-game-map />
+        </section>
+
+        <section class="info-panel" aria-label="Journal d'événements">
+          <app-log-panel />
+        </section>
+
+        <app-controls (action)="onAction($event)" />
+
+      } @else if (activeView() === '3d') {
+        <!-- Vue 3D -->
+        <section class="map-section" aria-label="Carte 3D">
+          <app-map-3d />
         </section>
 
         <section class="info-panel" aria-label="Journal d'événements">
